@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { AuthShell } from "@/components/auth-shell";
-import { ShieldCheck, Lock, Eye, RefreshCw } from "lucide-react";
+import { ShieldCheck, Lock, Eye, RefreshCw, Loader2, AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { getGoogleAuthUrlAction } from "@/lib/gmail/actions";
 
 export const Route = createFileRoute("/connect")({
   head: () => ({ meta: [{ title: "Connect Gmail — Repeatless AI" }] }),
@@ -27,22 +29,63 @@ const trust = [
 ];
 
 function Connect() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleAuthorize = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const redirectUri = `${window.location.origin}/oauth-callback`;
+      const result = await getGoogleAuthUrlAction({ data: redirectUri });
+      if (result?.url) {
+        window.location.href = result.url;
+      } else {
+        throw new Error("Failed to generate Google authorization link.");
+      }
+    } catch (err) {
+      console.error("Authorize error:", err);
+      const msg =
+        err instanceof Error ? err.message : "An error occurred while connecting to Google.";
+      setError(msg);
+      setLoading(false);
+    }
+  };
+
   return (
     <AuthShell
       step={{ current: 2, total: 3, label: "Connect Gmail" }}
       title="Connect your Gmail account."
       subtitle="Repeatless will sync your mailbox in the background and start summarizing immediately."
     >
+      {error && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       <div className="surface-card flex items-center gap-4 p-5">
         <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-beige">
           <GoogleMark className="h-6 w-6" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-charcoal">Google Account</div>
-          <div className="truncate text-xs text-muted-foreground">Gmail · Contacts (read-only)</div>
+          <div className="truncate text-xs text-muted-foreground">Gmail (Read & Send access)</div>
         </div>
-        <Button asChild className="rounded-xl bg-navy text-ivory hover:bg-navy/90">
-          <Link to="/dashboard">Authorize</Link>
+        <Button
+          onClick={handleAuthorize}
+          disabled={loading}
+          className="rounded-xl bg-navy text-ivory hover:bg-navy/90"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Redirecting...
+            </>
+          ) : (
+            "Authorize"
+          )}
         </Button>
       </div>
 

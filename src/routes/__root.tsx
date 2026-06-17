@@ -100,10 +100,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  const supabaseUrl = typeof process !== "undefined" ? process.env.SUPABASE_URL || "" : "";
+  const supabaseAnonKey = typeof process !== "undefined" ? process.env.SUPABASE_ANON_KEY || "" : "";
+
   return (
     <html lang="en">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.ENV = ${JSON.stringify({
+              SUPABASE_URL: supabaseUrl,
+              SUPABASE_ANON_KEY: supabaseAnonKey,
+            })};`,
+          }}
+        />
       </head>
       <body>
         {children}

@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+declare global {
+  interface Window {
+    ENV?: {
+      SUPABASE_URL?: string;
+      SUPABASE_ANON_KEY?: string;
+    };
+  }
+}
+
 /**
  * Zod schema for application environment variables.
  * Each variable has a comment explaining its purpose and where it is used.
@@ -48,8 +57,12 @@ export function validateEnv(runtimeEnv?: Record<string, unknown>): Env {
       GOOGLE_CLIENT_SECRET: "",
       GEMINI_API_KEY: "",
       NVIDIA_API_KEY: "",
-      SUPABASE_URL: isProcessDefined ? process.env.SUPABASE_URL || "" : "",
-      SUPABASE_ANON_KEY: isProcessDefined ? process.env.SUPABASE_ANON_KEY || "" : "",
+      SUPABASE_URL: isProcessDefined
+        ? process.env.SUPABASE_URL || ""
+        : window.ENV?.SUPABASE_URL || "",
+      SUPABASE_ANON_KEY: isProcessDefined
+        ? process.env.SUPABASE_ANON_KEY || ""
+        : window.ENV?.SUPABASE_ANON_KEY || "",
       SUPABASE_SERVICE_ROLE_KEY: "",
     } as Env;
   }
@@ -115,8 +128,12 @@ export function getEnv(runtimeEnv?: Record<string, unknown>): Env {
       GOOGLE_CLIENT_SECRET: "",
       GEMINI_API_KEY: "",
       NVIDIA_API_KEY: "",
-      SUPABASE_URL: isProcessDefined ? process.env.SUPABASE_URL || "" : "",
-      SUPABASE_ANON_KEY: isProcessDefined ? process.env.SUPABASE_ANON_KEY || "" : "",
+      SUPABASE_URL: isProcessDefined
+        ? process.env.SUPABASE_URL || ""
+        : window.ENV?.SUPABASE_URL || "",
+      SUPABASE_ANON_KEY: isProcessDefined
+        ? process.env.SUPABASE_ANON_KEY || ""
+        : window.ENV?.SUPABASE_ANON_KEY || "",
       SUPABASE_SERVICE_ROLE_KEY: "",
     } as Env;
   }
