@@ -5,7 +5,7 @@ import { threads } from "@/lib/mock-data";
 import { formatDistanceToNow } from "date-fns";
 import { MessagesSquare } from "lucide-react";
 
-export const Route = createFileRoute("/_app/threads")({
+export const Route = createFileRoute("/_app/threads/")({
   head: () => ({ meta: [{ title: "Threads — Repeatless AI" }] }),
   component: ThreadsList,
 });

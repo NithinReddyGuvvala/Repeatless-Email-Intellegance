@@ -14,7 +14,6 @@ import { Route as SigninRouteImport } from './routes/signin'
 import { Route as ConnectRouteImport } from './routes/connect'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppThreadsRouteImport } from './routes/_app.threads'
 import { Route as AppSummariesRouteImport } from './routes/_app.summaries'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppSearchRouteImport } from './routes/_app.search'
@@ -24,6 +23,7 @@ import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppComposeRouteImport } from './routes/_app.compose'
 import { Route as AppCategoriesRouteImport } from './routes/_app.categories'
 import { Route as AppAgentRouteImport } from './routes/_app.agent'
+import { Route as AppThreadsIndexRouteImport } from './routes/_app.threads.index'
 import { Route as AppThreadsThreadIdRouteImport } from './routes/_app.threads.$threadId'
 
 const SignupRoute = SignupRouteImport.update({
@@ -49,11 +49,6 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AppThreadsRoute = AppThreadsRouteImport.update({
-  id: '/threads',
-  path: '/threads',
-  getParentRoute: () => AppRoute,
 } as any)
 const AppSummariesRoute = AppSummariesRouteImport.update({
   id: '/summaries',
@@ -100,10 +95,15 @@ const AppAgentRoute = AppAgentRouteImport.update({
   path: '/agent',
   getParentRoute: () => AppRoute,
 } as any)
+const AppThreadsIndexRoute = AppThreadsIndexRouteImport.update({
+  id: '/threads/',
+  path: '/threads/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppThreadsThreadIdRoute = AppThreadsThreadIdRouteImport.update({
-  id: '/$threadId',
-  path: '/$threadId',
-  getParentRoute: () => AppThreadsRoute,
+  id: '/threads/$threadId',
+  path: '/threads/$threadId',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -120,8 +120,8 @@ export interface FileRoutesByFullPath {
   '/search': typeof AppSearchRoute
   '/settings': typeof AppSettingsRoute
   '/summaries': typeof AppSummariesRoute
-  '/threads': typeof AppThreadsRouteWithChildren
   '/threads/$threadId': typeof AppThreadsThreadIdRoute
+  '/threads/': typeof AppThreadsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -137,8 +137,8 @@ export interface FileRoutesByTo {
   '/search': typeof AppSearchRoute
   '/settings': typeof AppSettingsRoute
   '/summaries': typeof AppSummariesRoute
-  '/threads': typeof AppThreadsRouteWithChildren
   '/threads/$threadId': typeof AppThreadsThreadIdRoute
+  '/threads': typeof AppThreadsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -156,8 +156,8 @@ export interface FileRoutesById {
   '/_app/search': typeof AppSearchRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/summaries': typeof AppSummariesRoute
-  '/_app/threads': typeof AppThreadsRouteWithChildren
   '/_app/threads/$threadId': typeof AppThreadsThreadIdRoute
+  '/_app/threads/': typeof AppThreadsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -175,8 +175,8 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/summaries'
-    | '/threads'
     | '/threads/$threadId'
+    | '/threads/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -192,8 +192,8 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/summaries'
-    | '/threads'
     | '/threads/$threadId'
+    | '/threads'
   id:
     | '__root__'
     | '/'
@@ -210,8 +210,8 @@ export interface FileRouteTypes {
     | '/_app/search'
     | '/_app/settings'
     | '/_app/summaries'
-    | '/_app/threads'
     | '/_app/threads/$threadId'
+    | '/_app/threads/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -258,13 +258,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_app/threads': {
-      id: '/_app/threads'
-      path: '/threads'
-      fullPath: '/threads'
-      preLoaderRoute: typeof AppThreadsRouteImport
-      parentRoute: typeof AppRoute
     }
     '/_app/summaries': {
       id: '/_app/summaries'
@@ -329,27 +322,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAgentRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/threads/': {
+      id: '/_app/threads/'
+      path: '/threads'
+      fullPath: '/threads/'
+      preLoaderRoute: typeof AppThreadsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/threads/$threadId': {
       id: '/_app/threads/$threadId'
-      path: '/$threadId'
+      path: '/threads/$threadId'
       fullPath: '/threads/$threadId'
       preLoaderRoute: typeof AppThreadsThreadIdRouteImport
-      parentRoute: typeof AppThreadsRoute
+      parentRoute: typeof AppRoute
     }
   }
 }
-
-interface AppThreadsRouteChildren {
-  AppThreadsThreadIdRoute: typeof AppThreadsThreadIdRoute
-}
-
-const AppThreadsRouteChildren: AppThreadsRouteChildren = {
-  AppThreadsThreadIdRoute: AppThreadsThreadIdRoute,
-}
-
-const AppThreadsRouteWithChildren = AppThreadsRoute._addFileChildren(
-  AppThreadsRouteChildren,
-)
 
 interface AppRouteChildren {
   AppAgentRoute: typeof AppAgentRoute
@@ -361,7 +349,8 @@ interface AppRouteChildren {
   AppSearchRoute: typeof AppSearchRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSummariesRoute: typeof AppSummariesRoute
-  AppThreadsRoute: typeof AppThreadsRouteWithChildren
+  AppThreadsThreadIdRoute: typeof AppThreadsThreadIdRoute
+  AppThreadsIndexRoute: typeof AppThreadsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -374,7 +363,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppSearchRoute: AppSearchRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSummariesRoute: AppSummariesRoute,
-  AppThreadsRoute: AppThreadsRouteWithChildren,
+  AppThreadsThreadIdRoute: AppThreadsThreadIdRoute,
+  AppThreadsIndexRoute: AppThreadsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
