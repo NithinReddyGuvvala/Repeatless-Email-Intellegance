@@ -9,38 +9,225 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SigninRouteImport } from './routes/signin'
+import { Route as ConnectRouteImport } from './routes/connect'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppThreadsRouteImport } from './routes/_app.threads'
+import { Route as AppSummariesRouteImport } from './routes/_app.summaries'
+import { Route as AppNewslettersRouteImport } from './routes/_app.newsletters'
+import { Route as AppInboxRouteImport } from './routes/_app.inbox'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppComposeRouteImport } from './routes/_app.compose'
+import { Route as AppCategoriesRouteImport } from './routes/_app.categories'
+import { Route as AppAgentRouteImport } from './routes/_app.agent'
+import { Route as AppThreadsThreadIdRouteImport } from './routes/_app.threads.$threadId'
 
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SigninRoute = SigninRouteImport.update({
+  id: '/signin',
+  path: '/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnectRoute = ConnectRouteImport.update({
+  id: '/connect',
+  path: '/connect',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppThreadsRoute = AppThreadsRouteImport.update({
+  id: '/threads',
+  path: '/threads',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSummariesRoute = AppSummariesRouteImport.update({
+  id: '/summaries',
+  path: '/summaries',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNewslettersRoute = AppNewslettersRouteImport.update({
+  id: '/newsletters',
+  path: '/newsletters',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInboxRoute = AppInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComposeRoute = AppComposeRouteImport.update({
+  id: '/compose',
+  path: '/compose',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCategoriesRoute = AppCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAgentRoute = AppAgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppThreadsThreadIdRoute = AppThreadsThreadIdRouteImport.update({
+  id: '/$threadId',
+  path: '/$threadId',
+  getParentRoute: () => AppThreadsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/connect': typeof ConnectRoute
+  '/signin': typeof SigninRoute
+  '/signup': typeof SignupRoute
+  '/agent': typeof AppAgentRoute
+  '/categories': typeof AppCategoriesRoute
+  '/compose': typeof AppComposeRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/inbox': typeof AppInboxRoute
+  '/newsletters': typeof AppNewslettersRoute
+  '/summaries': typeof AppSummariesRoute
+  '/threads': typeof AppThreadsRouteWithChildren
+  '/threads/$threadId': typeof AppThreadsThreadIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/connect': typeof ConnectRoute
+  '/signin': typeof SigninRoute
+  '/signup': typeof SignupRoute
+  '/agent': typeof AppAgentRoute
+  '/categories': typeof AppCategoriesRoute
+  '/compose': typeof AppComposeRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/inbox': typeof AppInboxRoute
+  '/newsletters': typeof AppNewslettersRoute
+  '/summaries': typeof AppSummariesRoute
+  '/threads': typeof AppThreadsRouteWithChildren
+  '/threads/$threadId': typeof AppThreadsThreadIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/connect': typeof ConnectRoute
+  '/signin': typeof SigninRoute
+  '/signup': typeof SignupRoute
+  '/_app/agent': typeof AppAgentRoute
+  '/_app/categories': typeof AppCategoriesRoute
+  '/_app/compose': typeof AppComposeRoute
+  '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/inbox': typeof AppInboxRoute
+  '/_app/newsletters': typeof AppNewslettersRoute
+  '/_app/summaries': typeof AppSummariesRoute
+  '/_app/threads': typeof AppThreadsRouteWithChildren
+  '/_app/threads/$threadId': typeof AppThreadsThreadIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/connect'
+    | '/signin'
+    | '/signup'
+    | '/agent'
+    | '/categories'
+    | '/compose'
+    | '/dashboard'
+    | '/inbox'
+    | '/newsletters'
+    | '/summaries'
+    | '/threads'
+    | '/threads/$threadId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/connect'
+    | '/signin'
+    | '/signup'
+    | '/agent'
+    | '/categories'
+    | '/compose'
+    | '/dashboard'
+    | '/inbox'
+    | '/newsletters'
+    | '/summaries'
+    | '/threads'
+    | '/threads/$threadId'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/connect'
+    | '/signin'
+    | '/signup'
+    | '/_app/agent'
+    | '/_app/categories'
+    | '/_app/compose'
+    | '/_app/dashboard'
+    | '/_app/inbox'
+    | '/_app/newsletters'
+    | '/_app/summaries'
+    | '/_app/threads'
+    | '/_app/threads/$threadId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  ConnectRoute: typeof ConnectRoute
+  SigninRoute: typeof SigninRoute
+  SignupRoute: typeof SignupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signin': {
+      id: '/signin'
+      path: '/signin'
+      fullPath: '/signin'
+      preLoaderRoute: typeof SigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connect': {
+      id: '/connect'
+      path: '/connect'
+      fullPath: '/connect'
+      preLoaderRoute: typeof ConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +235,115 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/threads': {
+      id: '/_app/threads'
+      path: '/threads'
+      fullPath: '/threads'
+      preLoaderRoute: typeof AppThreadsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/summaries': {
+      id: '/_app/summaries'
+      path: '/summaries'
+      fullPath: '/summaries'
+      preLoaderRoute: typeof AppSummariesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/newsletters': {
+      id: '/_app/newsletters'
+      path: '/newsletters'
+      fullPath: '/newsletters'
+      preLoaderRoute: typeof AppNewslettersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inbox': {
+      id: '/_app/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof AppInboxRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/compose': {
+      id: '/_app/compose'
+      path: '/compose'
+      fullPath: '/compose'
+      preLoaderRoute: typeof AppComposeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/categories': {
+      id: '/_app/categories'
+      path: '/categories'
+      fullPath: '/categories'
+      preLoaderRoute: typeof AppCategoriesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/agent': {
+      id: '/_app/agent'
+      path: '/agent'
+      fullPath: '/agent'
+      preLoaderRoute: typeof AppAgentRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/threads/$threadId': {
+      id: '/_app/threads/$threadId'
+      path: '/$threadId'
+      fullPath: '/threads/$threadId'
+      preLoaderRoute: typeof AppThreadsThreadIdRouteImport
+      parentRoute: typeof AppThreadsRoute
+    }
   }
 }
 
+interface AppThreadsRouteChildren {
+  AppThreadsThreadIdRoute: typeof AppThreadsThreadIdRoute
+}
+
+const AppThreadsRouteChildren: AppThreadsRouteChildren = {
+  AppThreadsThreadIdRoute: AppThreadsThreadIdRoute,
+}
+
+const AppThreadsRouteWithChildren = AppThreadsRoute._addFileChildren(
+  AppThreadsRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppAgentRoute: typeof AppAgentRoute
+  AppCategoriesRoute: typeof AppCategoriesRoute
+  AppComposeRoute: typeof AppComposeRoute
+  AppDashboardRoute: typeof AppDashboardRoute
+  AppInboxRoute: typeof AppInboxRoute
+  AppNewslettersRoute: typeof AppNewslettersRoute
+  AppSummariesRoute: typeof AppSummariesRoute
+  AppThreadsRoute: typeof AppThreadsRouteWithChildren
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAgentRoute: AppAgentRoute,
+  AppCategoriesRoute: AppCategoriesRoute,
+  AppComposeRoute: AppComposeRoute,
+  AppDashboardRoute: AppDashboardRoute,
+  AppInboxRoute: AppInboxRoute,
+  AppNewslettersRoute: AppNewslettersRoute,
+  AppSummariesRoute: AppSummariesRoute,
+  AppThreadsRoute: AppThreadsRouteWithChildren,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  ConnectRoute: ConnectRoute,
+  SigninRoute: SigninRoute,
+  SignupRoute: SignupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
