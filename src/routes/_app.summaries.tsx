@@ -98,7 +98,10 @@ function SummaryCard({ item }: { item: Item }) {
           <div className="mt-1 font-serif text-base font-semibold text-charcoal">{item.title}</div>
         </div>
         <ChevronDown
-          className={cn("mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")}
+          className={cn(
+            "mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
         />
       </button>
       {open && (

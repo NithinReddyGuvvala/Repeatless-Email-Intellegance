@@ -57,7 +57,9 @@ function ThreadView() {
           <div className="surface-card p-6">
             <div className="mb-2 flex items-center gap-2">
               <CategoryBadge category={t.category} />
-              <span className="text-xs text-muted-foreground">{t.messages.length} messages · {t.participants.length} participants</span>
+              <span className="text-xs text-muted-foreground">
+                {t.messages.length} messages · {t.participants.length} participants
+              </span>
             </div>
             <h1 className="font-serif text-2xl font-semibold tracking-tight text-charcoal sm:text-[28px]">
               {t.subject}

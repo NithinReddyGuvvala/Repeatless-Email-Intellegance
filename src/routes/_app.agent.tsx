@@ -199,7 +199,9 @@ function MessageBubble({ m }: { m: Msg }) {
                   <Avatar initials={s.senderInitials} color={s.avatarColor} size={32} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="truncate text-xs font-medium text-charcoal">{s.senderName}</span>
+                      <span className="truncate text-xs font-medium text-charcoal">
+                        {s.senderName}
+                      </span>
                       <CategoryBadge category={s.category} />
                     </div>
                     <div className="mt-0.5 truncate text-xs text-charcoal-soft">{s.subject}</div>
@@ -212,13 +214,25 @@ function MessageBubble({ m }: { m: Msg }) {
         )}
 
         <div className="mt-3 flex items-center gap-1">
-          <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-xs text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
+          >
             <Copy className="h-3 w-3" /> Copy
           </Button>
-          <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-xs text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
+          >
             <MessagesSquare className="h-3 w-3" /> Follow up
           </Button>
-          <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-xs text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
+          >
             <Mail className="h-3 w-3" /> Draft reply
           </Button>
         </div>

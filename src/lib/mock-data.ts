@@ -1,10 +1,4 @@
-export type Category =
-  | "Work"
-  | "Newsletter"
-  | "Job"
-  | "Finance"
-  | "Personal"
-  | "Notification";
+export type Category = "Work" | "Newsletter" | "Job" | "Finance" | "Personal" | "Notification";
 
 export type Importance = "high" | "normal" | "low";
 
@@ -282,12 +276,24 @@ export const threads: Thread[] = [
 ];
 
 export const categories: { name: Category; count: number; description: string }[] = [
-  { name: "Work", count: 412, description: "Direct work threads, leadership, and project updates." },
-  { name: "Newsletter", count: 186, description: "Curated reading from publications you subscribe to." },
+  {
+    name: "Work",
+    count: 412,
+    description: "Direct work threads, leadership, and project updates.",
+  },
+  {
+    name: "Newsletter",
+    count: 186,
+    description: "Curated reading from publications you subscribe to.",
+  },
   { name: "Job", count: 24, description: "Recruiter outreach and application correspondence." },
   { name: "Finance", count: 73, description: "Invoices, receipts, and statements." },
   { name: "Personal", count: 58, description: "Friends, family, and personal correspondence." },
-  { name: "Notification", count: 209, description: "System notifications from tools and services." },
+  {
+    name: "Notification",
+    count: 209,
+    description: "System notifications from tools and services.",
+  },
 ];
 
 export const dashboardStats = {

@@ -63,10 +63,16 @@ function Compose() {
                 onClick={() => setMode(m)}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium capitalize",
-                  mode === m ? "bg-card text-charcoal shadow-soft" : "text-charcoal-soft hover:text-charcoal",
+                  mode === m
+                    ? "bg-card text-charcoal shadow-soft"
+                    : "text-charcoal-soft hover:text-charcoal",
                 )}
               >
-                {m === "edit" ? <Pencil className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                {m === "edit" ? (
+                  <Pencil className="h-3.5 w-3.5" />
+                ) : (
+                  <Eye className="h-3.5 w-3.5" />
+                )}
                 {m}
               </button>
             ))}

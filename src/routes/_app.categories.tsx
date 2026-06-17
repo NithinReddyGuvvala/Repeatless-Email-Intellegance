@@ -2,7 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell, PageHeader } from "@/components/app-shell";
 import { EmailRow } from "@/components/email-bits";
 import { categories, categoryDistribution, emails } from "@/lib/mock-data";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Briefcase, Newspaper, Banknote, Bell, Heart, BriefcaseBusiness } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -21,7 +30,14 @@ const icons = {
   Notification: Bell,
 } as const;
 
-const colors = ["var(--color-navy)", "var(--color-forest)", "var(--color-rust)", "var(--color-gold)", "var(--color-navy-soft)", "var(--color-charcoal-soft)"];
+const colors = [
+  "var(--color-navy)",
+  "var(--color-forest)",
+  "var(--color-rust)",
+  "var(--color-gold)",
+  "var(--color-navy-soft)",
+  "var(--color-charcoal-soft)",
+];
 
 function Categories() {
   const [active, setActive] = useState<string>("Work");
@@ -75,9 +91,24 @@ function Categories() {
           <div className="h-[260px]">
             <ResponsiveContainer>
               <BarChart data={categoryDistribution} margin={{ left: -10, right: 8, top: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="name" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--color-border)"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="name"
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
                 <Tooltip
                   contentStyle={{
                     background: "var(--color-card)",
@@ -102,10 +133,22 @@ function Categories() {
           </div>
           <div className="mt-0.5 font-serif text-lg font-semibold">What's standing out</div>
           <ul className="mt-4 space-y-3 text-sm text-charcoal-soft">
-            <li><span className="font-medium text-charcoal">Work</span> volume is up 14% week-over-week — driven by Q4 planning.</li>
-            <li><span className="font-medium text-charcoal">Newsletters</span> are down 6%; 4 subscriptions look dormant.</li>
-            <li><span className="font-medium text-charcoal">Finance</span> is on its normal monthly cadence.</li>
-            <li><span className="font-medium text-charcoal">Job</span> activity peaked Tuesday — 3 recruiter intros, 1 rejection.</li>
+            <li>
+              <span className="font-medium text-charcoal">Work</span> volume is up 14%
+              week-over-week — driven by Q4 planning.
+            </li>
+            <li>
+              <span className="font-medium text-charcoal">Newsletters</span> are down 6%; 4
+              subscriptions look dormant.
+            </li>
+            <li>
+              <span className="font-medium text-charcoal">Finance</span> is on its normal monthly
+              cadence.
+            </li>
+            <li>
+              <span className="font-medium text-charcoal">Job</span> activity peaked Tuesday — 3
+              recruiter intros, 1 rejection.
+            </li>
           </ul>
         </div>
       </div>

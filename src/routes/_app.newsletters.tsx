@@ -85,8 +85,12 @@ function Newsletters() {
                 <Newspaper className="h-4 w-4 text-charcoal-soft" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="truncate font-serif text-base font-semibold text-charcoal">{n.name}</div>
-                <div className="truncate text-xs text-muted-foreground">{n.author} · {n.cadence}</div>
+                <div className="truncate font-serif text-base font-semibold text-charcoal">
+                  {n.name}
+                </div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {n.author} · {n.cadence}
+                </div>
               </div>
             </div>
             <div className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">

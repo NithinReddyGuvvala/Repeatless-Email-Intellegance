@@ -22,7 +22,16 @@ export const Route = createFileRoute("/_app/inbox")({
   component: InboxPage,
 });
 
-const filters = ["All", "Unread", "Work", "Newsletter", "Finance", "Job", "Personal", "Notification"] as const;
+const filters = [
+  "All",
+  "Unread",
+  "Work",
+  "Newsletter",
+  "Finance",
+  "Job",
+  "Personal",
+  "Notification",
+] as const;
 
 function InboxPage() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
@@ -30,8 +39,8 @@ function InboxPage() {
     filter === "All"
       ? emails
       : filter === "Unread"
-      ? emails.filter((e) => e.unread)
-      : emails.filter((e) => e.category === filter);
+        ? emails.filter((e) => e.unread)
+        : emails.filter((e) => e.category === filter);
 
   return (
     <AppShell title="Inbox">

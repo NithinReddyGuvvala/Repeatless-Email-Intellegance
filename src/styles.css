@@ -82,9 +82,11 @@
   --color-forest-soft: var(--forest-soft);
   --color-rust: var(--rust);
   --color-gold: var(--gold);
-  --shadow-elegant: 0 1px 2px oklch(0.2 0.02 250 / 0.04), 0 8px 24px -12px oklch(0.2 0.02 250 / 0.10);
+  --shadow-elegant:
+    0 1px 2px oklch(0.2 0.02 250 / 0.04), 0 8px 24px -12px oklch(0.2 0.02 250 / 0.1);
   --shadow-soft: 0 1px 0 oklch(0.2 0.02 250 / 0.04), 0 1px 3px oklch(0.2 0.02 250 / 0.05);
-  --shadow-lifted: 0 2px 4px oklch(0.2 0.02 250 / 0.04), 0 16px 40px -16px oklch(0.2 0.02 250 / 0.18);
+  --shadow-lifted:
+    0 2px 4px oklch(0.2 0.02 250 / 0.04), 0 16px 40px -16px oklch(0.2 0.02 250 / 0.18);
 }
 
 :root {
@@ -181,7 +183,11 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  h1, h2, h3, h4, .font-serif {
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-serif {
     font-family: var(--font-serif);
     letter-spacing: -0.015em;
   }

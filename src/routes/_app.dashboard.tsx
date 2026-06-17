@@ -28,12 +28,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  dashboardStats,
-  weeklyVolume,
-  categoryDistribution,
-  emails,
-} from "@/lib/mock-data";
+import { dashboardStats, weeklyVolume, categoryDistribution, emails } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Repeatless AI" }] }),
@@ -50,12 +45,48 @@ const chartColors = [
 ];
 
 const stats = [
-  { label: "Total emails", value: dashboardStats.total.toLocaleString(), delta: "+312", trend: "up", icon: Mail },
-  { label: "Unread", value: dashboardStats.unread.toString(), delta: "-24", trend: "down", icon: MailOpen },
-  { label: "Categorized", value: dashboardStats.categorized.toLocaleString(), delta: "+286", trend: "up", icon: Tags },
-  { label: "Active threads", value: dashboardStats.threads.toLocaleString(), delta: "+18", trend: "up", icon: MessagesSquare },
-  { label: "AI summaries", value: dashboardStats.summaries.toString(), delta: "+47", trend: "up", icon: FileText },
-  { label: "Newsletters", value: dashboardStats.newsletters.toString(), delta: "+12", trend: "up", icon: Newspaper },
+  {
+    label: "Total emails",
+    value: dashboardStats.total.toLocaleString(),
+    delta: "+312",
+    trend: "up",
+    icon: Mail,
+  },
+  {
+    label: "Unread",
+    value: dashboardStats.unread.toString(),
+    delta: "-24",
+    trend: "down",
+    icon: MailOpen,
+  },
+  {
+    label: "Categorized",
+    value: dashboardStats.categorized.toLocaleString(),
+    delta: "+286",
+    trend: "up",
+    icon: Tags,
+  },
+  {
+    label: "Active threads",
+    value: dashboardStats.threads.toLocaleString(),
+    delta: "+18",
+    trend: "up",
+    icon: MessagesSquare,
+  },
+  {
+    label: "AI summaries",
+    value: dashboardStats.summaries.toString(),
+    delta: "+47",
+    trend: "up",
+    icon: FileText,
+  },
+  {
+    label: "Newsletters",
+    value: dashboardStats.newsletters.toString(),
+    delta: "+12",
+    trend: "up",
+    icon: Newspaper,
+  },
 ];
 
 function Dashboard() {
@@ -134,9 +165,24 @@ function Dashboard() {
                     <stop offset="100%" stopColor="var(--color-forest)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="day" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--color-border)"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="day"
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
                 <Tooltip
                   contentStyle={{
                     background: "var(--color-card)",
@@ -145,8 +191,20 @@ function Dashboard() {
                     fontSize: 12,
                   }}
                 />
-                <Area type="monotone" dataKey="received" stroke="var(--color-navy)" strokeWidth={2} fill="url(#rec)" />
-                <Area type="monotone" dataKey="sent" stroke="var(--color-forest)" strokeWidth={2} fill="url(#sen)" />
+                <Area
+                  type="monotone"
+                  dataKey="received"
+                  stroke="var(--color-navy)"
+                  strokeWidth={2}
+                  fill="url(#rec)"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="sent"
+                  stroke="var(--color-forest)"
+                  strokeWidth={2}
+                  fill="url(#sen)"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -168,7 +226,12 @@ function Dashboard() {
                   dataKey="value"
                 >
                   {categoryDistribution.map((_, i) => (
-                    <Cell key={i} fill={chartColors[i % chartColors.length]} stroke="var(--color-background)" strokeWidth={2} />
+                    <Cell
+                      key={i}
+                      fill={chartColors[i % chartColors.length]}
+                      stroke="var(--color-background)"
+                      strokeWidth={2}
+                    />
                   ))}
                 </Pie>
                 <Tooltip
@@ -206,7 +269,10 @@ function Dashboard() {
               </div>
               <div className="mt-0.5 font-serif text-lg font-semibold">Priority items</div>
             </div>
-            <Link to="/inbox" className="inline-flex items-center gap-1 text-sm text-navy hover:underline">
+            <Link
+              to="/inbox"
+              className="inline-flex items-center gap-1 text-sm text-navy hover:underline"
+            >
               View inbox <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -221,7 +287,9 @@ function Dashboard() {
                 <Avatar initials={e.senderInitials} color={e.avatarColor} size={34} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium text-charcoal">{e.senderName}</span>
+                    <span className="truncate text-sm font-medium text-charcoal">
+                      {e.senderName}
+                    </span>
                     <CategoryBadge category={e.category} />
                   </div>
                   <div className="truncate text-sm text-charcoal-soft">{e.subject}</div>
@@ -240,16 +308,16 @@ function Dashboard() {
           <div className="mt-4 space-y-3 text-sm leading-relaxed text-charcoal-soft">
             <p>
               <span className="font-medium text-charcoal">Eleanor</span> and{" "}
-              <span className="font-medium text-charcoal">Sofia</span> need a Berlin
-              decision before <span className="font-medium text-charcoal">July 3</span>.
+              <span className="font-medium text-charcoal">Sofia</span> need a Berlin decision before{" "}
+              <span className="font-medium text-charcoal">July 3</span>.
             </p>
             <p>
-              <span className="font-medium text-charcoal">Marcus</span> wants a green
-              light on the migration window — <span className="font-medium text-charcoal">June 28</span>.
+              <span className="font-medium text-charcoal">Marcus</span> wants a green light on the
+              migration window — <span className="font-medium text-charcoal">June 28</span>.
             </p>
             <p>
-              <span className="font-medium text-charcoal">Priya at Northwind</span>{" "}
-              follow-up still unscheduled.
+              <span className="font-medium text-charcoal">Priya at Northwind</span> follow-up still
+              unscheduled.
             </p>
           </div>
           <div className="mt-5 flex items-center gap-2 rounded-xl bg-beige/60 px-3 py-2 text-xs text-charcoal-soft">

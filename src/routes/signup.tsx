@@ -31,10 +31,7 @@ function SignUp() {
         <Input type="email" placeholder="Work email" className="h-11 rounded-xl bg-card" />
         <Input type="password" placeholder="Password" className="h-11 rounded-xl bg-card" />
       </form>
-      <Button
-        asChild
-        className="mt-5 h-11 w-full rounded-xl bg-navy text-ivory hover:bg-navy/90"
-      >
+      <Button asChild className="mt-5 h-11 w-full rounded-xl bg-navy text-ivory hover:bg-navy/90">
         <Link to="/connect">Continue</Link>
       </Button>
       <ul className="mt-7 space-y-2.5">

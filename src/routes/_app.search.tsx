@@ -120,7 +120,12 @@ function SearchPage() {
               )}
             </div>
             <div className="mt-3 text-xs text-muted-foreground">
-              {results.length} results {q && <>for "<span className="font-medium text-charcoal">{q}</span>"</>}
+              {results.length} results{" "}
+              {q && (
+                <>
+                  for "<span className="font-medium text-charcoal">{q}</span>"
+                </>
+              )}
             </div>
           </div>
           {results.length > 0 ? (

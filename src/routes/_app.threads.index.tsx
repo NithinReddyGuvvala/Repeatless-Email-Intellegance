@@ -30,7 +30,9 @@ function ThreadsList() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <MessagesSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">{t.messages.length} messages</span>
+                  <span className="text-xs text-muted-foreground">
+                    {t.messages.length} messages
+                  </span>
                   <CategoryBadge category={t.category} />
                 </div>
                 <div className="mt-2 font-serif text-lg font-semibold text-charcoal">
@@ -45,9 +47,7 @@ function ThreadsList() {
                       </div>
                     ))}
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {t.participants.join(", ")}
-                  </span>
+                  <span className="text-xs text-muted-foreground">{t.participants.join(", ")}</span>
                 </div>
               </div>
               <span className="shrink-0 text-xs text-muted-foreground">

@@ -74,9 +74,7 @@ export function EmailRow({ email }: { email: Email }) {
           </span>
           <CategoryBadge category={email.category} />
           {email.starred && <Star className="h-3.5 w-3.5 fill-gold text-gold" />}
-          {email.hasAttachments && (
-            <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
-          )}
+          {email.hasAttachments && <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />}
         </div>
         <div className="mt-1 flex items-baseline gap-2">
           <span

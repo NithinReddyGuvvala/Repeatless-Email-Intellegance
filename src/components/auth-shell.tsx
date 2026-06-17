@@ -62,7 +62,10 @@ export function AuthShell({
           </div>
 
           <div className="mt-auto pt-12 text-xs text-muted-foreground">
-            © 2026 Repeatless Labs · <Link to="/" className="hover:text-charcoal">Back to home</Link>
+            © 2026 Repeatless Labs ·{" "}
+            <Link to="/" className="hover:text-charcoal">
+              Back to home
+            </Link>
           </div>
         </div>
 
@@ -73,9 +76,9 @@ export function AuthShell({
                 Today's brief · 9:14 AM
               </div>
               <p className="text-[15px] leading-relaxed text-charcoal">
-                Eleanor circulated the final <span className="font-semibold">Q4 review agenda</span>.
-                Three decisions needed: Berlin office timing, Helios renewal terms,
-                engineering headcount. Madrid lease (July 3) is the hard deadline.
+                Eleanor circulated the final <span className="font-semibold">Q4 review agenda</span>
+                . Three decisions needed: Berlin office timing, Helios renewal terms, engineering
+                headcount. Madrid lease (July 3) is the hard deadline.
               </p>
               <div className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-1.5 py-0.5">
@@ -89,8 +92,8 @@ export function AuthShell({
 
             <div>
               <blockquote className="font-serif text-2xl leading-snug tracking-tight text-charcoal">
-                "Repeatless cut my Monday triage from 90 minutes to 11. It's the
-                only AI tool I've kept past month one."
+                "Repeatless cut my Monday triage from 90 minutes to 11. It's the only AI tool I've
+                kept past month one."
               </blockquote>
               <div className="mt-4 flex items-center gap-3">
                 <div className="grid h-9 w-9 place-items-center rounded-full bg-forest text-ivory text-sm font-medium">
