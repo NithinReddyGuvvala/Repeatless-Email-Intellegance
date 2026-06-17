@@ -16,6 +16,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppThreadsRouteImport } from './routes/_app.threads'
 import { Route as AppSummariesRouteImport } from './routes/_app.summaries'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppSearchRouteImport } from './routes/_app.search'
 import { Route as AppNewslettersRouteImport } from './routes/_app.newsletters'
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
@@ -57,6 +58,11 @@ const AppThreadsRoute = AppThreadsRouteImport.update({
 const AppSummariesRoute = AppSummariesRouteImport.update({
   id: '/summaries',
   path: '/summaries',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSearchRoute = AppSearchRouteImport.update({
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AppInboxRoute
   '/newsletters': typeof AppNewslettersRoute
   '/search': typeof AppSearchRoute
+  '/settings': typeof AppSettingsRoute
   '/summaries': typeof AppSummariesRoute
   '/threads': typeof AppThreadsRouteWithChildren
   '/threads/$threadId': typeof AppThreadsThreadIdRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AppInboxRoute
   '/newsletters': typeof AppNewslettersRoute
   '/search': typeof AppSearchRoute
+  '/settings': typeof AppSettingsRoute
   '/summaries': typeof AppSummariesRoute
   '/threads': typeof AppThreadsRouteWithChildren
   '/threads/$threadId': typeof AppThreadsThreadIdRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/_app/inbox': typeof AppInboxRoute
   '/_app/newsletters': typeof AppNewslettersRoute
   '/_app/search': typeof AppSearchRoute
+  '/_app/settings': typeof AppSettingsRoute
   '/_app/summaries': typeof AppSummariesRoute
   '/_app/threads': typeof AppThreadsRouteWithChildren
   '/_app/threads/$threadId': typeof AppThreadsThreadIdRoute
@@ -164,6 +173,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/newsletters'
     | '/search'
+    | '/settings'
     | '/summaries'
     | '/threads'
     | '/threads/$threadId'
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/newsletters'
     | '/search'
+    | '/settings'
     | '/summaries'
     | '/threads'
     | '/threads/$threadId'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/_app/inbox'
     | '/_app/newsletters'
     | '/_app/search'
+    | '/_app/settings'
     | '/_app/summaries'
     | '/_app/threads'
     | '/_app/threads/$threadId'
@@ -259,6 +271,13 @@ declare module '@tanstack/react-router' {
       path: '/summaries'
       fullPath: '/summaries'
       preLoaderRoute: typeof AppSummariesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/search': {
@@ -340,6 +359,7 @@ interface AppRouteChildren {
   AppInboxRoute: typeof AppInboxRoute
   AppNewslettersRoute: typeof AppNewslettersRoute
   AppSearchRoute: typeof AppSearchRoute
+  AppSettingsRoute: typeof AppSettingsRoute
   AppSummariesRoute: typeof AppSummariesRoute
   AppThreadsRoute: typeof AppThreadsRouteWithChildren
 }
@@ -352,6 +372,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppInboxRoute: AppInboxRoute,
   AppNewslettersRoute: AppNewslettersRoute,
   AppSearchRoute: AppSearchRoute,
+  AppSettingsRoute: AppSettingsRoute,
   AppSummariesRoute: AppSummariesRoute,
   AppThreadsRoute: AppThreadsRouteWithChildren,
 }
