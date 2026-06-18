@@ -6,30 +6,39 @@ let supabaseAdmin: SupabaseClient | null = null;
 
 // Only execute server client initialization on the server
 if (typeof window === "undefined") {
-  const env = getEnv();
-  const rawSupabaseUrl = env.SUPABASE_URL;
-  const supabaseUrl = rawSupabaseUrl ? rawSupabaseUrl.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "") : "";
-  const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
+  try {
+    const env = getEnv();
+    const rawSupabaseUrl = env.SUPABASE_URL;
+    const supabaseUrl = rawSupabaseUrl ? rawSupabaseUrl.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "") : "";
+    const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (supabaseUrl && supabaseServiceRoleKey) {
-    /**
-     * Server/admin Supabase instance.
-     * Uses the secret SUPABASE_SERVICE_ROLE_KEY.
-     * This client bypasses Row Level Security (RLS) policies.
-     *
-     * WARNING: Never import or use this file in client-side / browser components.
-     * It must ONLY be used in server actions, loaders, or API routes.
-     */
-    supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    });
-  } else {
+    if (supabaseUrl && supabaseServiceRoleKey) {
+      /**
+       * Server/admin Supabase instance.
+       * Uses the secret SUPABASE_SERVICE_ROLE_KEY.
+       * This client bypasses Row Level Security (RLS) policies.
+       *
+       * WARNING: Never import or use this file in client-side / browser components.
+       * It must ONLY be used in server actions, loaders, or API routes.
+       */
+      supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      });
+    } else {
+      console.warn(
+        "[Supabase Admin Client] Warning: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing. " +
+          "Please check your .env.local configuration.",
+      );
+    }
+  } catch (error) {
     console.warn(
-      "[Supabase Admin Client] Warning: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing. " +
-        "Please check your .env.local configuration.",
+      "[Supabase Admin Client] Warning: Environment validation deferred. " +
+        "This is expected if variables are not fully loaded during build/import phase. " +
+        "Detailed validation will execute during request handling.",
+      error
     );
   }
 }
