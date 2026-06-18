@@ -21,9 +21,6 @@ export const envSchema = z.object({
   // GEMINI_API_KEY → Used for generating email summaries, thread summaries, compose assistance, and the chat agent
   GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
 
-  // NVIDIA_API_KEY → Used for smart email categorization and analysis
-  NVIDIA_API_KEY: z.string().min(1, "NVIDIA_API_KEY is required"),
-
   // SUPABASE_URL → Base connection URL for the Supabase project
   SUPABASE_URL: z.string().url("SUPABASE_URL must be a valid URL"),
 
@@ -56,7 +53,6 @@ export function validateEnv(runtimeEnv?: Record<string, unknown>): Env {
       GOOGLE_CLIENT_ID: isProcessDefined ? process.env.GOOGLE_CLIENT_ID || "" : "",
       GOOGLE_CLIENT_SECRET: "",
       GEMINI_API_KEY: "",
-      NVIDIA_API_KEY: "",
       SUPABASE_URL: isProcessDefined
         ? process.env.SUPABASE_URL || ""
         : window.ENV?.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || "",
@@ -84,7 +80,6 @@ export function validateEnv(runtimeEnv?: Record<string, unknown>): Env {
     GOOGLE_CLIENT_ID: source.GOOGLE_CLIENT_ID || source.VITE_GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: source.GOOGLE_CLIENT_SECRET || source.VITE_GOOGLE_CLIENT_SECRET,
     GEMINI_API_KEY: source.GEMINI_API_KEY || source.VITE_GEMINI_API_KEY,
-    NVIDIA_API_KEY: source.NVIDIA_API_KEY || source.VITE_NVIDIA_API_KEY,
     SUPABASE_URL: source.SUPABASE_URL || source.VITE_SUPABASE_URL,
     SUPABASE_ANON_KEY: source.SUPABASE_ANON_KEY || source.VITE_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY:
@@ -127,7 +122,6 @@ export function getEnv(runtimeEnv?: Record<string, unknown>): Env {
       GOOGLE_CLIENT_ID: "",
       GOOGLE_CLIENT_SECRET: "",
       GEMINI_API_KEY: "",
-      NVIDIA_API_KEY: "",
       SUPABASE_URL: window.ENV?.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || "",
       SUPABASE_ANON_KEY: window.ENV?.SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || "",
       SUPABASE_SERVICE_ROLE_KEY: "",
