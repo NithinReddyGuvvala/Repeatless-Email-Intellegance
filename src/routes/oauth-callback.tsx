@@ -50,6 +50,10 @@ function OAuthCallback() {
 
       try {
         const redirectUri = `${window.location.origin}/oauth-callback`;
+        if (process.env.NODE_ENV === "development" || import.meta.env.DEV) {
+          console.log("[Gmail Callback] Current origin:", window.location.origin);
+          console.log("[Gmail Callback] Final redirectUri URL:", redirectUri);
+        }
         const result = await handleGoogleCallbackAction({
           data: { code, redirectUri },
         });

@@ -131,6 +131,12 @@ function SignIn() {
       return;
     }
     try {
+      const redirectTo = `${window.location.origin}/connect`;
+      if (process.env.NODE_ENV === "development" || import.meta.env.DEV) {
+        console.log("[Supabase Sign In] Current origin:", window.location.origin);
+        console.log("[Supabase Sign In] Final redirectTo URL:", redirectTo);
+      }
+
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -139,7 +145,7 @@ function SignIn() {
             access_type: "offline",
             prompt: "consent select_account",
           },
-          redirectTo: `${window.location.origin}/connect`,
+          redirectTo,
         },
       });
       if (authError) {

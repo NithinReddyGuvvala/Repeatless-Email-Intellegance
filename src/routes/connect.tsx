@@ -177,6 +177,10 @@ function Connect() {
     setError(null);
     try {
       const redirectUri = `${window.location.origin}/oauth-callback`;
+      if (process.env.NODE_ENV === "development" || import.meta.env.DEV) {
+        console.log("[Gmail Connect] Current origin:", window.location.origin);
+        console.log("[Gmail Connect] Final redirectUri URL:", redirectUri);
+      }
       const result = await getGoogleAuthUrlAction({
         data: {
           redirectUri,
