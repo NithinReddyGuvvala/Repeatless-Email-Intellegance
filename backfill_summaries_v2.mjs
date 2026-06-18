@@ -22,7 +22,7 @@ if (!SERVICE_KEY) {
   } catch (e) { /* no .env.local */ }
 }
 const db = createClient(SUPABASE_URL, SERVICE_KEY);
-
+ 
 // Parse CLI args
 const args = process.argv.slice(2);
 const limitIdx = args.indexOf("--limit");
