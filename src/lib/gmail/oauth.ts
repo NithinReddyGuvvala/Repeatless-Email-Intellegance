@@ -16,12 +16,17 @@ const GMAIL_PROFILE_ENDPOINT = "https://gmail.googleapis.com/gmail/v1/users/me/p
  * @param redirectUri The callback URL Google will redirect to
  * @returns The fully constructed Google OAuth URL
  */
-export function getGoogleAuthUrl(redirectUri: string): string {
+export function getGoogleAuthUrl(redirectUri: string, forceSelectAccount?: boolean): string {
   const env = getEnv();
 
   const scopes = [
-    "https://www.googleapis.com/auth/gmail.readonly",
+    // Full mailbox read/write (superset of readonly — includes modify, delete)
+    "https://www.googleapis.com/auth/gmail.modify",
+    // Send emails on behalf of the user
     "https://www.googleapis.com/auth/gmail.send",
+    // Create and manage drafts
+    "https://www.googleapis.com/auth/gmail.compose",
+    // Identity
     "openid",
     "email",
     "profile",
@@ -33,7 +38,7 @@ export function getGoogleAuthUrl(redirectUri: string): string {
     response_type: "code",
     scope: scopes.join(" "),
     access_type: "offline",
-    prompt: "consent", // Forces refresh token generation
+    prompt: forceSelectAccount ? "select_account consent" : "consent", // Forces refresh token + new scope consent or allows switching accounts
   });
 
   return `${GOOGLE_AUTH_ENDPOINT}?${params.toString()}`;
@@ -114,4 +119,43 @@ export async function getGmailProfile(accessToken: string): Promise<GmailProfile
   }
 
   return response.json() as Promise<GmailProfile>;
+}
+
+interface RefreshTokenResponse {
+  access_token: string;
+  expires_in: number;
+  scope: string;
+  token_type: string;
+}
+
+/**
+ * Refreshes the Google OAuth access token using the stored refresh token.
+ *
+ * @param refreshToken The Google OAuth refresh token
+ */
+export async function refreshAccessToken(refreshToken: string): Promise<RefreshTokenResponse> {
+  const env = getEnv();
+
+  const response = await fetch(GOOGLE_TOKEN_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      client_id: env.GOOGLE_CLIENT_ID,
+      client_secret: env.GOOGLE_CLIENT_SECRET,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[Google Token Refresh Error]:", errorText);
+    throw new Error(
+      `Failed to refresh Google access token: ${response.statusText}. Details: ${errorText}`,
+    );
+  }
+
+  return response.json() as Promise<RefreshTokenResponse>;
 }

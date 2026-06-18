@@ -7,7 +7,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search,
   ArrowDownUp,
-  Archive,
   Trash2,
   ChevronLeft,
   ChevronRight,
@@ -15,22 +14,21 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getInboxEmailsAction, archiveEmailsAction, deleteEmailsAction } from "@/lib/gmail/actions";
-import { isDemoMode, getDemoInboxEmails, demoArchiveEmails, demoDeleteEmails } from "@/lib/gmail/demoDb";
+import { getSentEmailsAction, deleteEmailsAction } from "@/lib/gmail/actions";
 import { toast } from "sonner";
 import { useSelectionState, computeSelectAllState } from "@/lib/useSelectionState";
+import { isDemoMode, getDemoSentEmails, demoDeleteEmails } from "@/lib/gmail/demoDb";
 
 import { RouteErrorComponent } from "./__root";
 
-export const Route = createFileRoute("/_app/inbox")({
-  head: () => ({ meta: [{ title: "Inbox — Repeatless AI" }] }),
-  component: InboxPage,
+export const Route = createFileRoute("/_app/sent")({
+  head: () => ({ meta: [{ title: "Sent Mail — Repeatless AI" }] }),
+  component: SentPage,
   errorComponent: RouteErrorComponent,
 });
 
 const filters = [
   "All",
-  "Unread",
   "Work",
   "Newsletter",
   "Finance",
@@ -42,27 +40,25 @@ const filters = [
 const sortOptions = [
   { value: "newest", label: "Newest first" },
   { value: "oldest", label: "Oldest first" },
-  { value: "unread", label: "Unread first" },
 ] as const;
 
 const PAGE_SIZE = 50;
 
-function InboxPage() {
+function SentPage() {
   const routerState = useRouterState();
   const locationKey = routerState.location.href;
   const [emails, setEmails] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [cursors, setCursors] = useState<(string | null)[]>(() => {
     if (typeof window !== "undefined") {
-      const saved = sessionStorage.getItem("inbox_cursors");
+      const saved = sessionStorage.getItem("sent_cursors");
       return saved ? JSON.parse(saved) : [null];
     }
     return [null];
   });
   const [page, setPage] = useState(() => {
     if (typeof window !== "undefined") {
-      const p = sessionStorage.getItem("inbox_page");
+      const p = sessionStorage.getItem("sent_page");
       return p ? parseInt(p, 10) : 0;
     }
     return 0;
@@ -70,19 +66,19 @@ function InboxPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<(typeof filters)[number]>(() => {
     if (typeof window !== "undefined") {
-      return (sessionStorage.getItem("inbox_filter") as any) || "All";
+      return (sessionStorage.getItem("sent_filter") as any) || "All";
     }
     return "All";
   });
-  const [sort, setSort] = useState<"newest" | "oldest" | "unread">(() => {
+  const [sort, setSort] = useState<"newest" | "oldest">(() => {
     if (typeof window !== "undefined") {
-      return (sessionStorage.getItem("inbox_sort") as any) || "newest";
+      return (sessionStorage.getItem("sent_sort") as any) || "newest";
     }
     return "newest";
   });
   const [search, setSearch] = useState(() => {
     if (typeof window !== "undefined") {
-      return sessionStorage.getItem("inbox_search") || "";
+      return sessionStorage.getItem("sent_search") || "";
     }
     return "";
   });
@@ -94,64 +90,14 @@ function InboxPage() {
   const [processingAction, setProcessingAction] = useState(false);
   const isDemo = isDemoMode();
 
-  // Derived select-all state computed from current visible emails
   const visibleIds = emails.map((e) => e.id);
   const { isAllSelected, isIndeterminate } = computeSelectAllState(selectedIds, visibleIds);
-
-
-  const handleArchive = async () => {
-    if (selectedIds.length === 0) return;
-    setProcessingAction(true);
-    const idsToProcess = [...selectedIds];
-
-    // Compute how many unread emails are being archived
-    const archivedUnreadCount = emails.filter(
-      (e) => idsToProcess.includes(e.id) && e.labels?.map((l: string) => l.toUpperCase()).includes("UNREAD")
-    ).length;
-    
-    // Optimistic UI update
-    setEmails((prev) => prev.filter((e) => !idsToProcess.includes(e.id)));
-    setTotalCount((prev) => Math.max(0, prev - idsToProcess.length));
-    setSelectedIds([]);
-
-    const promise = isDemo
-      ? demoArchiveEmails(idsToProcess)
-      : archiveEmailsAction({ data: idsToProcess });
-
-    toast.promise(
-      promise,
-      {
-        loading: `Archiving ${idsToProcess.length} email(s)...`,
-        success: () => {
-          if (archivedUnreadCount > 0) {
-            window.dispatchEvent(
-              new CustomEvent("gmail-unread-changed", { detail: { delta: -archivedUnreadCount } })
-            );
-          } else {
-            window.dispatchEvent(new CustomEvent("gmail-synced"));
-          }
-          loadEmails(filter, sort, search, page, cursors[page]);
-          return `Successfully archived ${idsToProcess.length} email(s).`;
-        },
-        error: (err) => {
-          loadEmails(filter, sort, search, page, cursors[page]);
-          return `Failed to archive: ${err instanceof Error ? err.message : String(err)}`;
-        },
-      }
-    );
-    setProcessingAction(false);
-  };
 
   const handleDelete = async () => {
     if (selectedIds.length === 0) return;
     setProcessingAction(true);
     const idsToProcess = [...selectedIds];
 
-    // Compute how many unread emails are being deleted
-    const deletedUnreadCount = emails.filter(
-      (e) => idsToProcess.includes(e.id) && e.labels?.map((l: string) => l.toUpperCase()).includes("UNREAD")
-    ).length;
-    
     // Optimistic UI update
     setEmails((prev) => prev.filter((e) => !idsToProcess.includes(e.id)));
     setTotalCount((prev) => Math.max(0, prev - idsToProcess.length));
@@ -166,13 +112,7 @@ function InboxPage() {
       {
         loading: `Deleting ${idsToProcess.length} email(s)...`,
         success: () => {
-          if (deletedUnreadCount > 0) {
-            window.dispatchEvent(
-              new CustomEvent("gmail-unread-changed", { detail: { delta: -deletedUnreadCount } })
-            );
-          } else {
-            window.dispatchEvent(new CustomEvent("gmail-synced"));
-          }
+          window.dispatchEvent(new CustomEvent("gmail-synced"));
           loadEmails(filter, sort, search, page, cursors[page]);
           return `Successfully deleted ${idsToProcess.length} email(s).`;
         },
@@ -186,56 +126,88 @@ function InboxPage() {
   };
 
   const loadEmails = useCallback(
-    (f: string, s: string, q: string, pageNum: number, cursorVal: string | null) => {
+    async (
+      currFilter: string,
+      currSort: string,
+      currSearch: string,
+      targetPage: number,
+      pageCursor: string | null = null,
+    ) => {
       setLoading(true);
-      const fetchPromise = isDemo
-        ? getDemoInboxEmails({ filter: f, sort: s, search: q, page: pageNum })
-        : getInboxEmailsAction({
-            data: {
-              filter: f,
-              sort: s,
-              search: q,
-              cursor: cursorVal || undefined,
-              pageSize: PAGE_SIZE
-            }
+      try {
+        if (isDemo) {
+          const res = await getDemoSentEmails({
+            query: currSearch,
+            category: currFilter !== "All" ? currFilter : undefined,
+            sort: currSort as "newest" | "oldest",
+            page: targetPage,
           });
-
-      fetchPromise
-        .then((res) => {
           setEmails(res.emails);
           setTotalCount(res.totalCount);
-          setUnreadCount(res.unreadCount || 0);
-          if (res.nextCursor) {
+          
+          if (targetPage === 0) {
+            setCursors([null, res.nextCursor]);
+          } else {
             setCursors((prev) => {
-              const copy = [...prev];
-              copy[pageNum + 1] = res.nextCursor;
-              return copy;
+              const updated = [...prev];
+              updated[targetPage + 1] = res.nextCursor;
+              return updated;
             });
           }
-        })
-        .catch((err) => console.error("Failed to load inbox emails:", err))
-        .finally(() => setLoading(false));
+          setLoading(false);
+          return;
+        }
+
+        const res = await getSentEmailsAction({
+          data: {
+            filter: currFilter,
+            sort: currSort,
+            search: currSearch,
+            cursor: pageCursor || undefined,
+            pageSize: PAGE_SIZE,
+          },
+        });
+
+        setEmails(res.emails);
+        setTotalCount(res.totalCount);
+
+        if (targetPage === 0) {
+          setCursors([null, res.nextCursor]);
+        } else {
+          setCursors((prev) => {
+            const updated = [...prev];
+            updated[targetPage + 1] = res.nextCursor;
+            return updated;
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load sent emails:", err);
+        toast.error("Could not retrieve sent emails.");
+      } finally {
+        setLoading(false);
+      }
     },
     [isDemo],
   );
 
   const isInitialMountRef = useRef(true);
+  const isInitialSearchMountRef = useRef(true);
 
   // Sync state to sessionStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
-      sessionStorage.setItem("inbox_filter", filter);
-      sessionStorage.setItem("inbox_sort", sort);
-      sessionStorage.setItem("inbox_search", search);
-      sessionStorage.setItem("inbox_page", page.toString());
-      sessionStorage.setItem("inbox_cursors", JSON.stringify(cursors));
+      sessionStorage.setItem("sent_filter", filter);
+      sessionStorage.setItem("sent_sort", sort);
+      sessionStorage.setItem("sent_search", search);
+      sessionStorage.setItem("sent_page", page.toString());
+      sessionStorage.setItem("sent_cursors", JSON.stringify(cursors));
     }
   }, [filter, sort, search, page, cursors]);
 
   // Scroll listener & restore hooks
   useEffect(() => {
     const handleScroll = () => {
-      sessionStorage.setItem("inbox_scroll", window.scrollY.toString());
+      sessionStorage.setItem("sent_scroll", window.scrollY.toString());
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
@@ -243,7 +215,7 @@ function InboxPage() {
 
   useEffect(() => {
     if (!loading && emails.length > 0) {
-      const savedScroll = sessionStorage.getItem("inbox_scroll");
+      const savedScroll = sessionStorage.getItem("sent_scroll");
       if (savedScroll) {
         setTimeout(() => {
           window.scrollTo(0, parseInt(savedScroll, 10));
@@ -272,24 +244,19 @@ function InboxPage() {
       loadEmails(filter, sort, search, 0, null);
     };
 
-    // When emails are marked as read, refresh the current page in-place
-    // (preserving pagination position) so read/unread styling updates
-    const handleUnreadChanged = () => {
-      loadEmails(filter, sort, search, page, cursors[page]);
-    };
-
     window.addEventListener("gmail-synced", handleSyncComplete);
-    window.addEventListener("gmail-unread-changed", handleUnreadChanged);
     return () => {
       window.removeEventListener("gmail-synced", handleSyncComplete);
-      window.removeEventListener("gmail-unread-changed", handleUnreadChanged);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, sort, locationKey, loadEmails]);
 
   // Debounced search (resets pagination)
   useEffect(() => {
-    if (isInitialMountRef.current) return;
+    if (isInitialSearchMountRef.current) {
+      isInitialSearchMountRef.current = false;
+      return;
+    }
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
     searchDebounce.current = setTimeout(() => {
       setPage(0);
@@ -303,15 +270,15 @@ function InboxPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
-  // Close sort dropdown on outside click
+  // Click outside to close sort dropdown
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) {
+    function handleClickOutside(event: MouseEvent) {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target as Node)) {
         setShowSortMenu(false);
       }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handlePrevPage = () => {
@@ -335,48 +302,42 @@ function InboxPage() {
   const currentSortLabel = sortOptions.find((o) => o.value === sort)?.label || "Newest first";
 
   return (
-    <AppShell title="Inbox">
+    <AppShell title="Sent Mail">
       <PageHeader
-        eyebrow={
-          loading
-            ? "Loading messages..."
-            : `${totalCount.toLocaleString()} messages · ${unreadCount} unread`
-        }
-        title="Inbox"
-        description="Sorted by AI relevance, then recency. Use filters to focus."
+        eyebrow={loading ? "Loading messages..." : `${totalCount.toLocaleString()} sent messages`}
+        title="Sent Mail"
+        description="View emails successfully sent from your linked Gmail account."
         actions={
-          <>
-            <div className="relative" ref={sortMenuRef}>
-              <Button
-                variant="outline"
-                className="rounded-xl border-border bg-card hover:bg-beige"
-                onClick={() => setShowSortMenu((v) => !v)}
-              >
-                <ArrowDownUp className="mr-2 h-4 w-4" />
-                {currentSortLabel}
-                <ChevronDown className="ml-1.5 h-3 w-3 opacity-60" />
-              </Button>
-              {showSortMenu && (
-                <div className="absolute right-0 top-full z-50 mt-1 w-44 rounded-xl border border-border bg-card py-1 shadow-lifted">
-                  {sortOptions.map((o) => (
-                    <button
-                      key={o.value}
-                      onClick={() => {
-                        setSort(o.value);
-                        setShowSortMenu(false);
-                      }}
-                      className={cn(
-                        "block w-full px-4 py-2 text-left text-sm transition-colors hover:bg-beige",
-                        sort === o.value && "font-semibold text-navy",
-                      )}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
+          <div className="relative" ref={sortMenuRef}>
+            <Button
+              variant="outline"
+              className="rounded-xl border-border bg-card hover:bg-beige"
+              onClick={() => setShowSortMenu((v) => !v)}
+            >
+              <ArrowDownUp className="mr-2 h-4 w-4" />
+              {currentSortLabel}
+              <ChevronDown className="ml-1.5 h-3 w-3 opacity-60" />
+            </Button>
+            {showSortMenu && (
+              <div className="absolute right-0 top-full z-50 mt-1 w-44 rounded-xl border border-border bg-card py-1 shadow-lifted">
+                {sortOptions.map((o) => (
+                  <button
+                    key={o.value}
+                    onClick={() => {
+                      setSort(o.value);
+                      setShowSortMenu(false);
+                    }}
+                    className={cn(
+                      "block w-full px-4 py-2 text-left text-sm transition-colors hover:bg-beige cursor-pointer",
+                      sort === o.value && "font-semibold text-navy",
+                    )}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         }
       />
 
@@ -388,7 +349,7 @@ function InboxPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-10 rounded-xl border-border bg-background pl-9"
-              placeholder="Search by subject or sender…"
+              placeholder="Search by subject or recipient…"
             />
           </div>
           <div className="flex items-center gap-2 overflow-x-auto">
@@ -397,7 +358,7 @@ function InboxPage() {
                 key={f}
                 onClick={() => setFilter(f)}
                 className={cn(
-                  "shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+                  "shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer",
                   filter === f
                     ? "border-navy bg-navy text-ivory"
                     : "border-border bg-card text-charcoal-soft hover:bg-beige",
@@ -411,7 +372,7 @@ function InboxPage() {
 
         <div className="flex items-center gap-1 border-b border-border bg-parchment/40 px-4 py-2 text-xs text-muted-foreground sm:px-6">
           <input
-            id="inbox-select-all"
+            id="sent-select-all"
             type="checkbox"
             className="mr-2 h-3.5 w-3.5 accent-navy cursor-pointer"
             aria-label="Select all emails on this page"
@@ -427,20 +388,6 @@ function InboxPage() {
               }
             }}
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 gap-1.5 px-2 text-xs"
-            disabled={selectedIds.length === 0 || processingAction}
-            onClick={handleArchive}
-          >
-            <Archive className="h-3.5 w-3.5" /> Archive
-            {selectedIds.length > 0 && (
-              <span className="ml-0.5 rounded-full bg-navy/10 px-1.5 py-0.5 text-[10px] font-semibold text-navy">
-                {selectedIds.length}
-              </span>
-            )}
-          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -464,13 +411,13 @@ function InboxPage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
               <Loader2 className="h-6 w-6 animate-spin text-navy" />
-              <span className="text-sm">Loading your inbox...</span>
+              <span className="text-sm">Loading sent mail...</span>
             </div>
           ) : emails.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
               <span className="text-sm">
                 {totalCount === 0
-                  ? "No emails synced yet. Click Sync Gmail in Settings."
+                  ? "No sent emails found."
                   : "No messages match the current filter."}
               </span>
             </div>
@@ -485,7 +432,7 @@ function InboxPage() {
                     prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
                   );
                 }}
-                from="inbox"
+                from="sent"
               />
             ))
           )}

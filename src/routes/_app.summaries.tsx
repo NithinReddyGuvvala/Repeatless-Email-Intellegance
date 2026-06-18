@@ -1,15 +1,21 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { AppShell, PageHeader } from "@/components/app-shell";
-import { CategoryBadge } from "@/components/email-bits";
-import { useState } from "react";
-import { ChevronDown, FileText, Sparkles } from "lucide-react";
-import { emails, threads } from "@/lib/mock-data";
-import { format } from "date-fns";
+import { CategoryBadge, formatEmailDate } from "@/components/email-bits";
+import { Button } from "@/components/ui/button";
+import { useState, useEffect, useCallback } from "react";
+import { ChevronDown, FileText, Sparkles, Loader2, RefreshCw } from "lucide-react";
+// date-fns format replaced in favor of safe formatEmailDate helper
 import { cn } from "@/lib/utils";
+import { getSummariesAction, backfillSummariesAction } from "@/lib/gmail/actions";
+import { isDemoMode, getDemoSummaries } from "@/lib/gmail/demoDb";
+import { toast } from "sonner";
+
+import { RouteErrorComponent } from "./__root";
 
 export const Route = createFileRoute("/_app/summaries")({
   head: () => ({ meta: [{ title: "Summaries — Repeatless AI" }] }),
   component: Summaries,
+  errorComponent: RouteErrorComponent,
 });
 
 type Item = {
@@ -20,32 +26,118 @@ type Item = {
   category: any;
   source: string;
   threadId: string;
+  unread?: boolean;
 };
 
+type BackfillStatus = {
+  remainingEmails: number;
+  remainingThreads: number;
+} | null;
+
 function Summaries() {
+  const routerState = useRouterState();
+  const locationKey = routerState.location.href;
   const [tab, setTab] = useState<"thread" | "email">("thread");
-  const items: Item[] =
-    tab === "thread"
-      ? threads.map((t) => ({
-          id: t.id,
-          title: t.subject,
-          summary: t.summary,
-          date: t.lastActivity,
-          category: t.category,
-          source: `${t.messages.length} messages · ${t.participants.length} people`,
-          threadId: t.id,
-        }))
-      : emails
-          .filter((e) => e.summary)
-          .map((e) => ({
-            id: e.id,
-            title: e.subject,
-            summary: e.summary!,
-            date: e.date,
-            category: e.category,
-            source: e.senderName,
-            threadId: e.threadId,
-          }));
+  const [data, setData] = useState<{
+    threadSummaries: any[];
+    emailSummaries: any[];
+    totalThreadSummaries: number;
+    totalEmailSummaries: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillStatus, setBackfillStatus] = useState<BackfillStatus>(null);
+  const isDemo = isDemoMode();
+
+  const loadSummaries = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    
+    const fetchPromise = isDemo ? getDemoSummaries() : getSummariesAction();
+
+    fetchPromise
+      .then((res) => {
+        console.log(`[Summaries] Loaded: ${res.threadSummaries.length} thread, ${res.emailSummaries.length} email summaries`);
+        setData(res);
+        if (res.remainingEmails > 0 || res.remainingThreads > 0) {
+          setBackfillStatus({
+            remainingEmails: res.remainingEmails,
+            remainingThreads: res.remainingThreads,
+          });
+        } else {
+          setBackfillStatus(null);
+        }
+      })
+      .catch((err) => {
+        console.error("[Summaries] Failed to load summaries:", err);
+        setError(err instanceof Error ? err.message : "Failed to load summaries.");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [isDemo]);
+
+  useEffect(() => {
+    loadSummaries();
+
+    window.addEventListener("gmail-synced", loadSummaries);
+    return () => {
+      window.removeEventListener("gmail-synced", loadSummaries);
+    };
+  }, [locationKey, loadSummaries]);
+
+  const handleBackfill = async () => {
+    setBackfilling(true);
+    setBackfillStatus(null);
+    const toastId = toast.loading("Analyzing emails & generating summaries with Gemini...");
+    
+    if (isDemo) {
+      setTimeout(() => {
+        toast.success("Generated 3 email and 2 thread summaries!", { id: toastId });
+        loadSummaries();
+        setBackfilling(false);
+      }, 1200);
+      return;
+    }
+
+    try {
+      const res = await backfillSummariesAction();
+      if (res.success) {
+        const { emailsGenerated, threadsGenerated, remainingEmails, remainingThreads } = res;
+
+        if (emailsGenerated === 0 && threadsGenerated === 0) {
+          toast.success("All summaries are already up to date!", { id: toastId });
+        } else {
+          toast.success(
+            `Generated ${emailsGenerated} email and ${threadsGenerated} thread summaries!`,
+            { id: toastId }
+          );
+        }
+
+        // Reload list after generation
+        loadSummaries();
+
+        if (remainingEmails > 0 || remainingThreads > 0) {
+          setBackfillStatus({ remainingEmails, remainingThreads });
+          toast.info(
+            `${remainingEmails} emails and ${remainingThreads} threads still need summaries. Click "Continue" to process more.`,
+            { duration: 7000 }
+          );
+        } else {
+          setBackfillStatus(null);
+        }
+      }
+    } catch (err) {
+      console.error("[Summaries] Backfill error:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to backfill summaries.", { id: toastId });
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
+  const items: Item[] = tab === "thread" ? data?.threadSummaries || [] : data?.emailSummaries || [];
+  const totalSummaries = (data?.totalThreadSummaries ?? 0) + (data?.totalEmailSummaries ?? 0);
 
   return (
     <AppShell title="Summaries">
@@ -53,6 +145,38 @@ function Summaries() {
         eyebrow="AI synthesis"
         title="Summaries"
         description="Thread-level and email-level summaries generated by Gemini. Click any to open the source."
+        actions={
+          <div className="flex items-center gap-2">
+            {backfillStatus && (
+              <span className="text-xs text-muted-foreground">
+                {backfillStatus.remainingEmails + backfillStatus.remainingThreads} remaining
+              </span>
+            )}
+            <Button
+              variant="outline"
+              className="rounded-xl border-border bg-card hover:bg-beige"
+              onClick={handleBackfill}
+              disabled={backfilling || loading}
+            >
+              {backfilling ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin text-forest" />
+                  Summarizing...
+                </>
+              ) : backfillStatus ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 text-forest" />
+                  Continue ({backfillStatus.remainingEmails + backfillStatus.remainingThreads} left)
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4 text-forest" />
+                  Backfill summaries
+                </>
+              )}
+            </Button>
+          </div>
+        }
       />
 
       <div className="mb-5 inline-flex gap-1 rounded-xl border border-border bg-card p-1">
@@ -66,14 +190,65 @@ function Summaries() {
             )}
           >
             {k} summaries
+            {!loading && data && (
+              <span className={cn(
+                "ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                tab === k ? "bg-ivory/20 text-ivory" : "bg-border text-muted-foreground"
+              )}>
+                {k === "thread" ? data.totalThreadSummaries : data.totalEmailSummaries}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
       <div className="space-y-3">
-        {items.map((item) => (
-          <SummaryCard key={item.id} item={item} />
-        ))}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-navy" />
+            <span className="text-sm">Loading summaries...</span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
+            <span className="text-sm text-rust">{error}</span>
+            <button onClick={loadSummaries} className="text-sm text-navy hover:underline">
+              Try again
+            </button>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground text-center px-4 gap-3">
+            <Sparkles className="h-10 w-10 text-muted-foreground/30" />
+            <div>
+              <p className="text-sm font-medium text-charcoal">
+                {totalSummaries > 0
+                  ? `No ${tab} summaries yet.`
+                  : "No summaries generated yet."}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                {totalSummaries > 0
+                  ? `Switch to the other tab or click "Backfill summaries" to generate ${tab} summaries.`
+                  : "Use the \"Backfill summaries\" button above to synthesize summaries for your existing emails."}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-border bg-card hover:bg-beige mt-1"
+              onClick={handleBackfill}
+              disabled={backfilling}
+            >
+              {backfilling ? (
+                <><Loader2 className="mr-2 h-3 w-3 animate-spin" /> Generating...</>
+              ) : (
+                <><Sparkles className="mr-2 h-3 w-3 text-forest" /> Generate now</>
+              )}
+            </Button>
+          </div>
+        ) : (
+          items.map((item) => (
+            <SummaryCard key={item.id} item={item} />
+          ))
+        )}
       </div>
     </AppShell>
   );
@@ -81,21 +256,46 @@ function Summaries() {
 
 function SummaryCard({ item }: { item: Item }) {
   const [open, setOpen] = useState(true);
+
+  // Safe date parsing handles this natively now
+
   return (
-    <div className="surface-card overflow-hidden">
+    <div
+      className={cn(
+        "surface-card overflow-hidden animate-fade-in transition-colors",
+        item.unread ? "bg-white dark:bg-card border-l-4 border-l-[#1a73e8]" : "bg-transparent border border-border/80"
+      )}
+    >
       <button
         onClick={() => setOpen(!open)}
         className="flex w-full items-start gap-4 p-5 text-left hover:bg-beige/40"
       >
+        {/* Blue unread dot */}
+        {item.unread && (
+          <span
+            className="h-2 w-2 mt-3.5 shrink-0 rounded-full bg-[#1a73e8]"
+            aria-label="Unread summary"
+          />
+        )}
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-beige">
           <Sparkles className="h-4 w-4 text-forest" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <CategoryBadge category={item.category} />
-            <span className="text-xs text-muted-foreground">{item.source}</span>
+            <span className={cn(
+              "text-xs",
+              item.unread ? "font-bold text-charcoal" : "text-muted-foreground"
+            )}>
+              {item.source}
+            </span>
           </div>
-          <div className="mt-1 font-serif text-base font-semibold text-charcoal">{item.title}</div>
+          <div className={cn(
+            "mt-1 font-serif text-base text-charcoal",
+            item.unread ? "font-bold" : "font-semibold"
+          )}>
+            {item.title}
+          </div>
         </div>
         <ChevronDown
           className={cn(
@@ -108,14 +308,17 @@ function SummaryCard({ item }: { item: Item }) {
         <div className="border-t border-border bg-parchment/30 px-5 py-4">
           <p className="text-[14.5px] leading-relaxed text-charcoal">{item.summary}</p>
           <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
+            <div className={cn(
+              "flex items-center gap-2",
+              item.unread ? "font-bold text-charcoal" : "text-muted-foreground"
+            )}>
               <FileText className="h-3.5 w-3.5" />
-              Source · {format(new Date(item.date), "PPp")}
+              Source · {formatEmailDate(item.date, "PPp")}
             </div>
             <Link
               to="/threads/$threadId"
               params={{ threadId: item.threadId }}
-              className="text-navy hover:underline"
+              className="text-navy hover:underline font-medium"
             >
               Open source →
             </Link>

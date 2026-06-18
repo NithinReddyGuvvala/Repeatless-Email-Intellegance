@@ -17,12 +17,15 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSummariesRouteImport } from './routes/_app.summaries'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppSentRouteImport } from './routes/_app.sent'
 import { Route as AppSearchRouteImport } from './routes/_app.search'
 import { Route as AppNewslettersRouteImport } from './routes/_app.newsletters'
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
+import { Route as AppDraftsRouteImport } from './routes/_app.drafts'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppComposeRouteImport } from './routes/_app.compose'
 import { Route as AppCategoriesRouteImport } from './routes/_app.categories'
+import { Route as AppArchivedRouteImport } from './routes/_app.archived'
 import { Route as AppAgentRouteImport } from './routes/_app.agent'
 import { Route as AppThreadsIndexRouteImport } from './routes/_app.threads.index'
 import { Route as AppThreadsThreadIdRouteImport } from './routes/_app.threads.$threadId'
@@ -66,6 +69,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSentRoute = AppSentRouteImport.update({
+  id: '/sent',
+  path: '/sent',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSearchRoute = AppSearchRouteImport.update({
   id: '/search',
   path: '/search',
@@ -81,6 +89,11 @@ const AppInboxRoute = AppInboxRouteImport.update({
   path: '/inbox',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDraftsRoute = AppDraftsRouteImport.update({
+  id: '/drafts',
+  path: '/drafts',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -94,6 +107,11 @@ const AppComposeRoute = AppComposeRouteImport.update({
 const AppCategoriesRoute = AppCategoriesRouteImport.update({
   id: '/categories',
   path: '/categories',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppArchivedRoute = AppArchivedRouteImport.update({
+  id: '/archived',
+  path: '/archived',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAgentRoute = AppAgentRouteImport.update({
@@ -119,12 +137,15 @@ export interface FileRoutesByFullPath {
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
   '/agent': typeof AppAgentRoute
+  '/archived': typeof AppArchivedRoute
   '/categories': typeof AppCategoriesRoute
   '/compose': typeof AppComposeRoute
   '/dashboard': typeof AppDashboardRoute
+  '/drafts': typeof AppDraftsRoute
   '/inbox': typeof AppInboxRoute
   '/newsletters': typeof AppNewslettersRoute
   '/search': typeof AppSearchRoute
+  '/sent': typeof AppSentRoute
   '/settings': typeof AppSettingsRoute
   '/summaries': typeof AppSummariesRoute
   '/threads/$threadId': typeof AppThreadsThreadIdRoute
@@ -137,12 +158,15 @@ export interface FileRoutesByTo {
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
   '/agent': typeof AppAgentRoute
+  '/archived': typeof AppArchivedRoute
   '/categories': typeof AppCategoriesRoute
   '/compose': typeof AppComposeRoute
   '/dashboard': typeof AppDashboardRoute
+  '/drafts': typeof AppDraftsRoute
   '/inbox': typeof AppInboxRoute
   '/newsletters': typeof AppNewslettersRoute
   '/search': typeof AppSearchRoute
+  '/sent': typeof AppSentRoute
   '/settings': typeof AppSettingsRoute
   '/summaries': typeof AppSummariesRoute
   '/threads/$threadId': typeof AppThreadsThreadIdRoute
@@ -157,12 +181,15 @@ export interface FileRoutesById {
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
   '/_app/agent': typeof AppAgentRoute
+  '/_app/archived': typeof AppArchivedRoute
   '/_app/categories': typeof AppCategoriesRoute
   '/_app/compose': typeof AppComposeRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/drafts': typeof AppDraftsRoute
   '/_app/inbox': typeof AppInboxRoute
   '/_app/newsletters': typeof AppNewslettersRoute
   '/_app/search': typeof AppSearchRoute
+  '/_app/sent': typeof AppSentRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/summaries': typeof AppSummariesRoute
   '/_app/threads/$threadId': typeof AppThreadsThreadIdRoute
@@ -177,12 +204,15 @@ export interface FileRouteTypes {
     | '/signin'
     | '/signup'
     | '/agent'
+    | '/archived'
     | '/categories'
     | '/compose'
     | '/dashboard'
+    | '/drafts'
     | '/inbox'
     | '/newsletters'
     | '/search'
+    | '/sent'
     | '/settings'
     | '/summaries'
     | '/threads/$threadId'
@@ -195,12 +225,15 @@ export interface FileRouteTypes {
     | '/signin'
     | '/signup'
     | '/agent'
+    | '/archived'
     | '/categories'
     | '/compose'
     | '/dashboard'
+    | '/drafts'
     | '/inbox'
     | '/newsletters'
     | '/search'
+    | '/sent'
     | '/settings'
     | '/summaries'
     | '/threads/$threadId'
@@ -214,12 +247,15 @@ export interface FileRouteTypes {
     | '/signin'
     | '/signup'
     | '/_app/agent'
+    | '/_app/archived'
     | '/_app/categories'
     | '/_app/compose'
     | '/_app/dashboard'
+    | '/_app/drafts'
     | '/_app/inbox'
     | '/_app/newsletters'
     | '/_app/search'
+    | '/_app/sent'
     | '/_app/settings'
     | '/_app/summaries'
     | '/_app/threads/$threadId'
@@ -293,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/sent': {
+      id: '/_app/sent'
+      path: '/sent'
+      fullPath: '/sent'
+      preLoaderRoute: typeof AppSentRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/search': {
       id: '/_app/search'
       path: '/search'
@@ -314,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInboxRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/drafts': {
+      id: '/_app/drafts'
+      path: '/drafts'
+      fullPath: '/drafts'
+      preLoaderRoute: typeof AppDraftsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -333,6 +383,13 @@ declare module '@tanstack/react-router' {
       path: '/categories'
       fullPath: '/categories'
       preLoaderRoute: typeof AppCategoriesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/archived': {
+      id: '/_app/archived'
+      path: '/archived'
+      fullPath: '/archived'
+      preLoaderRoute: typeof AppArchivedRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/agent': {
@@ -361,12 +418,15 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAgentRoute: typeof AppAgentRoute
+  AppArchivedRoute: typeof AppArchivedRoute
   AppCategoriesRoute: typeof AppCategoriesRoute
   AppComposeRoute: typeof AppComposeRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppDraftsRoute: typeof AppDraftsRoute
   AppInboxRoute: typeof AppInboxRoute
   AppNewslettersRoute: typeof AppNewslettersRoute
   AppSearchRoute: typeof AppSearchRoute
+  AppSentRoute: typeof AppSentRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSummariesRoute: typeof AppSummariesRoute
   AppThreadsThreadIdRoute: typeof AppThreadsThreadIdRoute
@@ -375,12 +435,15 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAgentRoute: AppAgentRoute,
+  AppArchivedRoute: AppArchivedRoute,
   AppCategoriesRoute: AppCategoriesRoute,
   AppComposeRoute: AppComposeRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppDraftsRoute: AppDraftsRoute,
   AppInboxRoute: AppInboxRoute,
   AppNewslettersRoute: AppNewslettersRoute,
   AppSearchRoute: AppSearchRoute,
+  AppSentRoute: AppSentRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSummariesRoute: AppSummariesRoute,
   AppThreadsThreadIdRoute: AppThreadsThreadIdRoute,

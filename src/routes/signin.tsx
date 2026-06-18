@@ -1,34 +1,209 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AuthShell } from "@/components/auth-shell";
+import { useState, useEffect } from "react";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { getAuthenticatedUser, supabaseAdmin } from "@/lib/supabase/server";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+type SignInSearchParams = {
+  logout?: string;
+};
 
 export const Route = createFileRoute("/signin")({
+  validateSearch: (search: Record<string, unknown>): SignInSearchParams => ({
+    logout: search.logout as string | undefined,
+  }),
   head: () => ({ meta: [{ title: "Sign in — Repeatless AI" }] }),
+  beforeLoad: async () => {
+    let isAuthenticated = false;
+    let hasAccount = false;
+
+    if (typeof window === "undefined") {
+      const user = await getAuthenticatedUser();
+      isAuthenticated = !!user;
+      if (user && supabaseAdmin) {
+        const { data } = await supabaseAdmin
+          .from("gmail_accounts")
+          .select("id")
+          .eq("user_id", user.id)
+          .limit(1);
+        hasAccount = !!data && data.length > 0;
+      }
+    } else {
+      const supabase = getSupabaseBrowser();
+      if (supabase) {
+        const { data } = await supabase.auth.getSession();
+        isAuthenticated = !!data?.session;
+        if (data?.session?.user) {
+          const { data: accounts } = await supabase
+            .from("gmail_accounts")
+            .select("id")
+            .limit(1);
+          hasAccount = !!accounts && accounts.length > 0;
+        }
+      }
+    }
+
+    if (isAuthenticated) {
+      if (hasAccount) {
+        throw redirect({
+          to: "/dashboard",
+        });
+      } else {
+        throw redirect({
+          to: "/connect",
+        });
+      }
+    }
+  },
   component: SignIn,
 });
 
 function SignIn() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const search = Route.useSearch();
+  const [toastShown, setToastShown] = useState(false);
+
+  useEffect(() => {
+    if (search.logout === "true" && !toastShown) {
+      setToastShown(true);
+      toast.success("Logged out successfully.");
+      // Clean up the URL search param so refreshing doesn't show it again
+      navigate({ to: "/signin", search: {}, replace: true });
+    }
+  }, [search.logout, navigate, toastShown]);
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    // Clear logged out cookie so authentication is recognized
+    document.cookie = "inbox_harmony_logged_out=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+    const supabase = getSupabaseBrowser();
+    if (!supabase) {
+      setError("Supabase is not configured.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) {
+        setError(authError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (data?.session) {
+        navigate({ to: "/connect", search: { reconnect: undefined } });
+      } else {
+        setError("Could not establish a session.");
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error("Sign in error:", err);
+      setError("An unexpected error occurred during sign in.");
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    // Clear logged out cookie so authentication is recognized
+    document.cookie = "inbox_harmony_logged_out=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+    const supabase = getSupabaseBrowser();
+    if (!supabase) {
+      setError("Supabase is not configured.");
+      return;
+    }
+    try {
+      const { error: authError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          scopes: "openid email profile https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.compose",
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent select_account",
+          },
+          redirectTo: `${window.location.origin}/connect`,
+        },
+      });
+      if (authError) {
+        setError(authError.message);
+      }
+    } catch (err) {
+      console.error("Google sign in error:", err);
+      setError("An unexpected error occurred during Google sign in.");
+    }
+  };
+
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to continue to your intelligent inbox.">
+      {error && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       <Button
         variant="outline"
         className="h-11 w-full rounded-xl border-border bg-card text-[15px] font-medium hover:bg-beige"
-        asChild
+        onClick={handleGoogleSignIn}
+        disabled={loading}
       >
-        <Link to="/connect">
-          <GoogleMark className="mr-2 h-4 w-4" />
-          Continue with Google
-        </Link>
+        <GoogleMark className="mr-2 h-4 w-4" />
+        Continue with Google
       </Button>
       <div className="my-6 flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
         <div className="h-px flex-1 bg-border" /> or email <div className="h-px flex-1 bg-border" />
       </div>
-      <form className="space-y-3" onSubmit={(e) => e.preventDefault()}>
-        <Input type="email" placeholder="you@company.com" className="h-11 rounded-xl bg-card" />
-        <Input type="password" placeholder="Password" className="h-11 rounded-xl bg-card" />
-        <Button className="h-11 w-full rounded-xl bg-navy text-ivory hover:bg-navy/90">
-          Sign in
+      <form className="space-y-3" onSubmit={handleSignIn}>
+        <Input
+          type="email"
+          placeholder="you@company.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          disabled={loading}
+          className="h-11 rounded-xl bg-card"
+        />
+        <Input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          disabled={loading}
+          className="h-11 rounded-xl bg-card"
+        />
+        <Button
+          type="submit"
+          disabled={loading}
+          className="h-11 w-full rounded-xl bg-navy text-ivory hover:bg-navy/90"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Signing in...
+            </>
+          ) : (
+            "Sign in"
+          )}
         </Button>
       </form>
       <p className="mt-6 text-sm text-muted-foreground">

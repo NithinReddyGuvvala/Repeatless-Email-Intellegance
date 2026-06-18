@@ -1,7 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { AppShell, PageHeader } from "@/components/app-shell";
 import { Avatar, CategoryBadge } from "@/components/email-bits";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect, useCallback } from "react";
 import {
   Mail,
   MailOpen,
@@ -15,6 +16,7 @@ import {
   Sparkles,
   Clock,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import {
   Area,
@@ -28,7 +30,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { dashboardStats, weeklyVolume, categoryDistribution, emails } from "@/lib/mock-data";
+import { getDashboardDataAction, getUserSettingsAction, generateDailyBriefAction } from "@/lib/gmail/actions";
+import { isDemoMode, getDemoDashboardData } from "@/lib/gmail/demoDb";
+import { format } from "date-fns";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Repeatless AI" }] }),
@@ -44,61 +48,268 @@ const chartColors = [
   "var(--color-charcoal-soft)",
 ];
 
-const stats = [
-  {
-    label: "Total emails",
-    value: dashboardStats.total.toLocaleString(),
-    delta: "+312",
-    trend: "up",
-    icon: Mail,
-  },
-  {
-    label: "Unread",
-    value: dashboardStats.unread.toString(),
-    delta: "-24",
-    trend: "down",
-    icon: MailOpen,
-  },
-  {
-    label: "Categorized",
-    value: dashboardStats.categorized.toLocaleString(),
-    delta: "+286",
-    trend: "up",
-    icon: Tags,
-  },
-  {
-    label: "Active threads",
-    value: dashboardStats.threads.toLocaleString(),
-    delta: "+18",
-    trend: "up",
-    icon: MessagesSquare,
-  },
-  {
-    label: "AI summaries",
-    value: dashboardStats.summaries.toString(),
-    delta: "+47",
-    trend: "up",
-    icon: FileText,
-  },
-  {
-    label: "Newsletters",
-    value: dashboardStats.newsletters.toString(),
-    delta: "+12",
-    trend: "up",
-    icon: Newspaper,
-  },
-];
-
 function Dashboard() {
-  const priorityEmails = emails.filter((e) => e.importance === "high").slice(0, 4);
-  const recent = emails.slice(0, 5);
+  const routerState = useRouterState();
+  const locationKey = routerState.location.href;
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState("");
+  const [briefItems, setBriefItems] = useState<string[]>([]);
+  const [briefLoading, setBriefLoading] = useState(false);
+  const [briefIsStale, setBriefIsStale] = useState(false);
+  const [briefError, setBriefError] = useState<string | null>(null);
+  const [briefIsEmpty, setBriefIsEmpty] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const isDemo = isDemoMode();
+
+  const loadBrief = useCallback((cacheKey: string, forceRefresh = false) => {
+    if (isDemo) {
+      setBriefLoading(true);
+      setBriefError(null);
+      setTimeout(() => {
+        setBriefItems([
+          "Sarah Jenkins requested developer resources for the Supabase sync engine and wants to meet tomorrow at 10 AM.",
+          "Stripe Careers sent an invitation to schedule your Senior Fullstack technical interview panel next week.",
+          "You have a pending invoice INV-2026-0041 from Acme Billing for $4,500.00 due in 15 days.",
+          "TLDR Newsletter reports that Vite 7 was released with Rust compiler speedups and Apple is launching local on-device AI models."
+        ]);
+        setBriefLoading(false);
+      }, 600);
+      return;
+    }
+
+    const CACHE_KEY_KEY = "dashboard_brief_cache_key";
+    const CACHE_DATA_KEY = "dashboard_brief_data";
+
+    const cachedKey = localStorage.getItem(CACHE_KEY_KEY);
+    const cachedData = localStorage.getItem(CACHE_DATA_KEY);
+
+    // If cache hit and not forcing refresh, use it immediately
+    if (!forceRefresh && cachedKey === cacheKey && cachedData) {
+      try {
+        const parsed = JSON.parse(cachedData);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setBriefItems(parsed);
+          setBriefIsStale(false);
+          setBriefError(null);
+          setBriefIsEmpty(false);
+          return; // Done — use cache
+        }
+      } catch {
+        // Corrupt cache — fall through to generation
+      }
+    }
+
+    // Generate fresh brief
+    setBriefLoading(true);
+    setBriefError(null);
+
+    generateDailyBriefAction()
+      .then((briefRes) => {
+        const { brief = [], error = null, isEmpty = false } = briefRes as any;
+
+        if (error) {
+          // Gemini failed — show stale cache if available, else error message
+          const displayError = error.includes("quota") || error.includes("Quota")
+            ? "AI temporarily unavailable due to quota limits."
+            : error;
+
+          const staleData = localStorage.getItem(CACHE_DATA_KEY);
+          if (staleData) {
+            try {
+              const staleParsed = JSON.parse(staleData);
+              if (Array.isArray(staleParsed) && staleParsed.length > 0) {
+                setBriefItems(staleParsed);
+                setBriefIsStale(true);
+                setBriefError(displayError);
+                return;
+              }
+            } catch { /* ignore */ }
+          }
+          // No stale cache at all
+          setBriefItems([]);
+          setBriefIsStale(true);
+          setBriefError(displayError);
+          return;
+        }
+
+        if (isEmpty) {
+          setBriefIsEmpty(true);
+          setBriefItems([]);
+          setBriefError(null);
+          return;
+        }
+
+        // Success — update state and persist cache
+        setBriefItems(brief);
+        setBriefIsStale(false);
+        setBriefError(null);
+        setBriefIsEmpty(false);
+        localStorage.setItem(CACHE_KEY_KEY, cacheKey);
+        localStorage.setItem(CACHE_DATA_KEY, JSON.stringify(brief));
+      })
+      .catch((err) => {
+        console.error("[Dashboard] Failed to call generateDailyBriefAction:", err);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        const displayError = errMsg.includes("quota") || errMsg.includes("Quota") || errMsg.includes("temporarily unavailable")
+          ? "AI temporarily unavailable due to quota limits."
+          : "Brief generation is temporarily unavailable.";
+
+        // Network/server error — try showing stale cache
+        const staleData = localStorage.getItem(CACHE_DATA_KEY);
+        if (staleData) {
+          try {
+            const staleParsed = JSON.parse(staleData);
+            if (Array.isArray(staleParsed) && staleParsed.length > 0) {
+              setBriefItems(staleParsed);
+              setBriefIsStale(true);
+              setBriefError(displayError);
+              return;
+            }
+          } catch { /* ignore */ }
+        }
+        setBriefError(displayError);
+      })
+      .finally(() => {
+        setBriefLoading(false);
+      });
+  }, [isDemo]);
+
+
+  const loadDashboard = useCallback(() => {
+    setLoading(true);
+    if (isDemo) {
+      const dashRes = getDemoDashboardData();
+      setData(dashRes);
+      setUserName("Jane Doe");
+      setLoading(false);
+      loadBrief(dashRes.cacheKey);
+      return;
+    }
+
+    Promise.all([
+      getDashboardDataAction(),
+      getUserSettingsAction(),
+    ])
+      .then(([dashRes, userRes]) => {
+        setData(dashRes);
+        setUserName(userRes.user.displayName || "");
+        if (dashRes.cacheKey) {
+          loadBrief(dashRes.cacheKey);
+        }
+      })
+      .catch((err) => {
+        console.error("[Dashboard] Failed to load dashboard data:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [loadBrief, isDemo]);
+
+  const handleRetryBrief = useCallback(() => {
+    const cacheKey = data?.cacheKey;
+    if (!cacheKey) return;
+    setRetryCount(c => c + 1);
+    setBriefIsStale(false);
+    setBriefError(null);
+    loadBrief(cacheKey, true);
+  }, [data, loadBrief]);
+
+
+  const statsData = data?.stats || { total: 0, unread: 0, categorized: 0, threads: 0, summaries: 0, newsletters: 0 };
+  const stats = [
+    {
+      label: "Total emails",
+      value: statsData.total.toLocaleString(),
+      delta: "+312",
+      trend: "up",
+      icon: Mail,
+    },
+    {
+      label: "Unread",
+      value: statsData.unread.toString(),
+      delta: "-24",
+      trend: "down",
+      icon: MailOpen,
+    },
+    {
+      label: "Categorized",
+      value: statsData.categorized.toLocaleString(),
+      delta: "+286",
+      trend: "up",
+      icon: Tags,
+    },
+    {
+      label: "Active threads",
+      value: statsData.threads.toLocaleString(),
+      delta: "+18",
+      trend: "up",
+      icon: MessagesSquare,
+    },
+    {
+      label: "AI summaries",
+      value: statsData.summaries.toString(),
+      delta: "+47",
+      trend: "up",
+      icon: FileText,
+    },
+    {
+      label: "Newsletters",
+      value: statsData.newsletters.toString(),
+      delta: "+12",
+      trend: "up",
+      icon: Newspaper,
+    },
+  ];
+
+  const weeklyVolume = data?.weeklyVolume || [];
+  const categoryDistribution = data?.categoryDistribution || [];
+  const priorityEmails = data?.priorityEmails || [];
+  const recent = data?.recentEmails || [];
+
+
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const firstName = userName ? userName.split(/\s+/)[0] : "";
+  const greetingText = firstName ? `${greeting}, ${firstName}.` : `${greeting}.`;
+  const dateStr = format(now, "EEEE, MMMM d");
+
+  useEffect(() => {
+    loadDashboard();
+
+    const handleSynced = () => loadDashboard();
+    const handleUnreadChanged = () => loadDashboard();
+
+    window.addEventListener("gmail-synced", handleSynced);
+    window.addEventListener("gmail-unread-changed", handleUnreadChanged);
+    return () => {
+      window.removeEventListener("gmail-synced", handleSynced);
+      window.removeEventListener("gmail-unread-changed", handleUnreadChanged);
+    };
+  }, [locationKey, loadDashboard]);
+
+  if (loading) {
+    return (
+      <AppShell title="Dashboard">
+        <div className="flex flex-col items-center justify-center py-40 text-muted-foreground gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-navy" />
+          <span className="text-sm">Loading dashboard data...</span>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title="Dashboard">
       <PageHeader
-        eyebrow="Today · Tuesday, June 17"
-        title="Good morning, Alex."
-        description="Your inbox is calmer than yesterday. 3 priority items need a decision today."
+        eyebrow={`Today · ${dateStr}`}
+        title={greetingText}
+        description={
+          statsData.unread > 0
+            ? `You have ${statsData.unread} unread email${statsData.unread !== 1 ? "s" : ""}.${priorityEmails.length > 0 ? ` ${priorityEmails.length} priority item${priorityEmails.length !== 1 ? "s" : ""} need attention.` : ""}`
+            : "Your inbox is up to date."
+        }
         actions={
           <Button asChild className="rounded-xl bg-navy text-ivory hover:bg-navy/90">
             <Link to="/agent">
@@ -225,7 +436,7 @@ function Dashboard() {
                   paddingAngle={2}
                   dataKey="value"
                 >
-                  {categoryDistribution.map((_, i) => (
+                  {categoryDistribution.map((_: any, i: number) => (
                     <Cell
                       key={i}
                       fill={chartColors[i % chartColors.length]}
@@ -246,7 +457,7 @@ function Dashboard() {
             </ResponsiveContainer>
           </div>
           <div className="grid grid-cols-2 gap-1.5">
-            {categoryDistribution.map((c, i) => (
+            {categoryDistribution.map((c: any, i: number) => (
               <div key={c.name} className="flex items-center gap-2 text-xs">
                 <span
                   className="h-2 w-2 rounded-full"
@@ -277,11 +488,12 @@ function Dashboard() {
             </Link>
           </div>
           <div className="-mx-5 divide-y divide-border border-y border-border">
-            {priorityEmails.map((e) => (
+            {priorityEmails.map((e: any) => (
               <Link
                 key={e.id}
                 to="/threads/$threadId"
                 params={{ threadId: e.threadId }}
+                search={{ from: "dashboard" }}
                 className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-beige/60"
               >
                 <Avatar initials={e.senderInitials} color={e.avatarColor} size={34} />
@@ -301,28 +513,62 @@ function Dashboard() {
         </div>
 
         <div className="surface-card p-5">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            AI insights
+          <div className="flex items-center justify-between mb-0.5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              AI insights
+            </div>
+            {briefIsStale && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-gold/10 px-2 py-0.5 text-[10px] font-medium text-gold uppercase tracking-wide">
+                <Clock className="h-2.5 w-2.5" /> Cached
+              </span>
+            )}
           </div>
           <div className="mt-0.5 font-serif text-lg font-semibold">Today's brief</div>
           <div className="mt-4 space-y-3 text-sm leading-relaxed text-charcoal-soft">
-            <p>
-              <span className="font-medium text-charcoal">Eleanor</span> and{" "}
-              <span className="font-medium text-charcoal">Sofia</span> need a Berlin decision before{" "}
-              <span className="font-medium text-charcoal">July 3</span>.
-            </p>
-            <p>
-              <span className="font-medium text-charcoal">Marcus</span> wants a green light on the
-              migration window — <span className="font-medium text-charcoal">June 28</span>.
-            </p>
-            <p>
-              <span className="font-medium text-charcoal">Priya at Northwind</span> follow-up still
-              unscheduled.
-            </p>
+            {briefLoading ? (
+              <div className="flex flex-col items-center justify-center py-6 text-muted-foreground gap-2">
+                <Loader2 className="h-5 w-5 animate-spin text-navy" />
+                <span className="text-xs">Generating your daily brief...</span>
+              </div>
+            ) : briefItems.length > 0 ? (
+              <>
+                {briefItems.map((line: string, i: number) => (
+                  <p key={i} className="flex items-start gap-2 text-charcoal-soft">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest" />
+                    <span>{line}</span>
+                  </p>
+                ))}
+                {briefError && (
+                  <p className="text-[11px] text-muted-foreground italic mt-2">{briefError}</p>
+                )}
+              </>
+            ) : briefIsEmpty ? (
+              <p className="text-muted-foreground">No emails synced yet. Sync your Gmail to generate a brief.</p>
+            ) : briefError ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-muted-foreground text-xs">{briefError}</p>
+              </div>
+            ) : (
+              <p className="text-muted-foreground">
+                {statsData.total === 0
+                  ? "Sync your Gmail to generate a daily brief."
+                  : "No tasks or updates found today."}
+              </p>
+            )}
           </div>
-          <div className="mt-5 flex items-center gap-2 rounded-xl bg-beige/60 px-3 py-2 text-xs text-charcoal-soft">
-            <Clock className="h-3.5 w-3.5" />
-            Generated 8 minutes ago · Gemini 2.5 Pro
+          <div className="mt-5 flex items-center justify-between">
+            <div className="flex items-center gap-2 rounded-xl bg-beige/60 px-3 py-2 text-xs text-charcoal-soft">
+              <Clock className="h-3.5 w-3.5" />
+              <span>AI powered · Refreshed automatically</span>
+            </div>
+            {(briefIsStale || briefError) && !briefLoading && (
+              <button
+                onClick={handleRetryBrief}
+                className="text-xs text-navy hover:underline font-medium"
+              >
+                Retry
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -337,11 +583,12 @@ function Dashboard() {
           </div>
         </div>
         <div className="-mx-5 -mb-5 divide-y divide-border border-t border-border">
-          {recent.map((e) => (
+          {recent.map((e: any) => (
             <Link
               key={e.id}
               to="/threads/$threadId"
               params={{ threadId: e.threadId }}
+              search={{ from: "dashboard" }}
               className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-beige/60"
             >
               <Avatar initials={e.senderInitials} color={e.avatarColor} size={32} />

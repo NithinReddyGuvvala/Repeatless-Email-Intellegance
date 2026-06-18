@@ -1,8 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouterState } from "@tanstack/react-router";
 import { AppShell, PageHeader } from "@/components/app-shell";
-import { newsletters } from "@/lib/mock-data";
-import { Sparkles, Newspaper, Copy } from "lucide-react";
-import { format } from "date-fns";
+import { Sparkles, Newspaper, Copy, Loader2 } from "lucide-react";
+import { formatEmailDate } from "@/components/email-bits";
+import { useState, useEffect, useCallback } from "react";
+import { getNewslettersAction } from "@/lib/gmail/actions";
+import { isDemoMode, getDemoNewsletters } from "@/lib/gmail/demoDb";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/newsletters")({
   head: () => ({ meta: [{ title: "Newsletter Intelligence — Repeatless AI" }] }),
@@ -10,6 +13,37 @@ export const Route = createFileRoute("/_app/newsletters")({
 });
 
 function Newsletters() {
+  const routerState = useRouterState();
+  const locationKey = routerState.location.href;
+  const [loading, setLoading] = useState(true);
+  const [newsletters, setNewsletters] = useState<any[]>([]);
+  const isDemo = isDemoMode();
+
+  const loadNewsletters = useCallback(() => {
+    setLoading(true);
+    const fetchPromise = isDemo
+      ? getDemoNewsletters()
+      : getNewslettersAction();
+
+    fetchPromise
+      .then((res) => {
+        setNewsletters(res.newsletters);
+      })
+      .catch((err) => console.error("Failed to load newsletters:", err))
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [isDemo]);
+
+  useEffect(() => {
+    loadNewsletters();
+
+    window.addEventListener("gmail-synced", loadNewsletters);
+    return () => {
+      window.removeEventListener("gmail-synced", loadNewsletters);
+    };
+  }, [locationKey, loadNewsletters]);
+
   return (
     <AppShell title="Newsletter Intelligence">
       <PageHeader
@@ -26,88 +60,94 @@ function Newsletters() {
           </span>
         </div>
         <h2 className="font-serif text-2xl font-semibold tracking-tight text-charcoal">
-          Three stories worth your attention
+          {newsletters.length > 0
+            ? `${newsletters.length} newsletter sender${newsletters.length !== 1 ? "s" : ""} in your inbox`
+            : "No newsletter digests yet"}
         </h2>
-        <div className="mt-5 space-y-4">
-          {[
-            {
-              title: "Custom silicon is the new compute moat",
-              body: "Apple, Anthropic, and Meta all advanced vertical-compute strategies this week. Read: the pure GPU-rental era is ending.",
-              sources: ["Stratechery", "Pragmatic Engineer"],
-              dedup: 2,
-            },
-            {
-              title: "Internal developer platforms consolidate around Backstage",
-              body: "Multiple newsletters report scale-ups standardising on Backstage forks, with operator usage up 34% YoY.",
-              sources: ["Pragmatic Engineer"],
-              dedup: 1,
-            },
-            {
-              title: "PMs are rebuilding their inbox rituals",
-              body: "Batched triage and weekly archive sweeps are emerging as best practice among senior PMs.",
-              sources: ["Lenny's Newsletter"],
-              dedup: 1,
-            },
-          ].map((s) => (
-            <div key={s.title} className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="font-serif text-lg font-semibold text-charcoal">{s.title}</div>
-                {s.dedup > 1 && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-rust/10 px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-wider text-rust">
-                    <Copy className="h-2.5 w-2.5" /> {s.dedup}× sources
-                  </span>
-                )}
-              </div>
-              <p className="mt-1.5 text-sm text-charcoal-soft">{s.body}</p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {s.sources.map((src) => (
-                  <span
-                    key={src}
-                    className="rounded-md border border-border bg-background px-2 py-0.5 text-[10.5px] font-medium text-charcoal-soft"
-                  >
-                    {src}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        {newsletters.length === 0 && !loading && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Sync your Gmail and emails with the CATEGORY_PROMOTIONS label will appear here.
+          </p>
+        )}
       </div>
 
       <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         Subscriptions
       </div>
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {newsletters.map((n) => (
-          <div key={n.id} className="surface-card p-5">
-            <div className="flex items-start gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-beige">
-                <Newspaper className="h-4 w-4 text-charcoal-soft" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-serif text-base font-semibold text-charcoal">
-                  {n.name}
+
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
+          <Loader2 className="h-6 w-6 animate-spin text-navy" />
+          <span className="text-sm">Loading newsletters...</span>
+        </div>
+      ) : newsletters.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <Newspaper className="h-10 w-10 mb-3 opacity-30" />
+          <span className="text-sm">No newsletter subscriptions found.</span>
+          <span className="text-xs mt-1">Sync Gmail to populate newsletter senders.</span>
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {newsletters.map((n) => (
+            <div
+              key={n.id}
+              className={cn(
+                "surface-card p-5 relative transition-colors",
+                n.unread ? "bg-white dark:bg-card border-l-4 border-l-[#1a73e8]" : "bg-transparent border border-border/80"
+              )}
+            >
+              {/* Unread indicator dot */}
+              {n.unread && (
+                <span
+                  className="absolute top-4 right-4 h-2 w-2 rounded-full bg-[#1a73e8]"
+                  aria-label="Unread newsletter"
+                />
+              )}
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-beige">
+                  <Newspaper className="h-4 w-4 text-charcoal-soft" />
                 </div>
-                <div className="truncate text-xs text-muted-foreground">
-                  {n.author} · {n.cadence}
+                <div className="min-w-0 flex-1">
+                  <div className={cn(
+                    "truncate font-serif text-base text-charcoal",
+                    n.unread ? "font-bold" : "font-semibold"
+                  )}>
+                    {n.name}
+                  </div>
+                  <div className={cn(
+                    "truncate text-xs",
+                    n.unread ? "font-semibold text-charcoal" : "text-muted-foreground"
+                  )}>
+                    {n.author} · {n.cadence}
+                  </div>
                 </div>
               </div>
+              <div className={cn(
+                "mt-4 text-[11px] uppercase tracking-[0.16em]",
+                n.unread ? "font-bold text-charcoal" : "font-semibold text-muted-foreground"
+              )}>
+                Latest · {formatEmailDate(n.date, "MMM d")}
+              </div>
+              <div className={cn(
+                "mt-1 text-sm line-clamp-2",
+                n.unread ? "text-charcoal font-semibold" : "font-medium text-charcoal-soft"
+              )}>
+                {n.lastIssue}
+              </div>
+              {n.extracted && n.extracted.length > 0 && (
+                <ul className="mt-3 space-y-1.5 text-xs text-charcoal-soft">
+                  {n.extracted.map((e: string) => (
+                    <li key={e} className="flex gap-1.5">
+                      <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-forest" />
+                      <span>{e}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            <div className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Latest · {format(new Date(n.date), "MMM d")}
-            </div>
-            <div className="mt-1 text-sm font-medium text-charcoal">{n.lastIssue}</div>
-            <ul className="mt-3 space-y-1.5 text-xs text-charcoal-soft">
-              {n.extracted.map((e) => (
-                <li key={e} className="flex gap-1.5">
-                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-forest" />
-                  <span>{e}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </AppShell>
   );
 }

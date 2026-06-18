@@ -59,10 +59,10 @@ export function validateEnv(runtimeEnv?: Record<string, unknown>): Env {
       NVIDIA_API_KEY: "",
       SUPABASE_URL: isProcessDefined
         ? process.env.SUPABASE_URL || ""
-        : window.ENV?.SUPABASE_URL || "",
+        : window.ENV?.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || "",
       SUPABASE_ANON_KEY: isProcessDefined
         ? process.env.SUPABASE_ANON_KEY || ""
-        : window.ENV?.SUPABASE_ANON_KEY || "",
+        : window.ENV?.SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || "",
       SUPABASE_SERVICE_ROLE_KEY: "",
     } as Env;
   }
@@ -81,13 +81,14 @@ export function validateEnv(runtimeEnv?: Record<string, unknown>): Env {
   } as Record<string, string | undefined>;
 
   const rawEnv = {
-    GOOGLE_CLIENT_ID: source.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: source.GOOGLE_CLIENT_SECRET,
-    GEMINI_API_KEY: source.GEMINI_API_KEY,
-    NVIDIA_API_KEY: source.NVIDIA_API_KEY,
-    SUPABASE_URL: source.SUPABASE_URL,
-    SUPABASE_ANON_KEY: source.SUPABASE_ANON_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: source.SUPABASE_SERVICE_ROLE_KEY,
+    GOOGLE_CLIENT_ID: source.GOOGLE_CLIENT_ID || source.VITE_GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: source.GOOGLE_CLIENT_SECRET || source.VITE_GOOGLE_CLIENT_SECRET,
+    GEMINI_API_KEY: source.GEMINI_API_KEY || source.VITE_GEMINI_API_KEY,
+    NVIDIA_API_KEY: source.NVIDIA_API_KEY || source.VITE_NVIDIA_API_KEY,
+    SUPABASE_URL: source.SUPABASE_URL || source.VITE_SUPABASE_URL,
+    SUPABASE_ANON_KEY: source.SUPABASE_ANON_KEY || source.VITE_SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY:
+      source.SUPABASE_SERVICE_ROLE_KEY || source.VITE_SUPABASE_SERVICE_ROLE_KEY,
   };
 
   const result = envSchema.safeParse(rawEnv);
@@ -122,18 +123,13 @@ Please check your environment configuration or .env.local file.
 export function getEnv(runtimeEnv?: Record<string, unknown>): Env {
   if (typeof window !== "undefined") {
     // Client-side fallback to avoid throwing on client imports
-    const isProcessDefined = typeof process !== "undefined" && process.env;
     return {
-      GOOGLE_CLIENT_ID: isProcessDefined ? process.env.GOOGLE_CLIENT_ID || "" : "",
+      GOOGLE_CLIENT_ID: "",
       GOOGLE_CLIENT_SECRET: "",
       GEMINI_API_KEY: "",
       NVIDIA_API_KEY: "",
-      SUPABASE_URL: isProcessDefined
-        ? process.env.SUPABASE_URL || ""
-        : window.ENV?.SUPABASE_URL || "",
-      SUPABASE_ANON_KEY: isProcessDefined
-        ? process.env.SUPABASE_ANON_KEY || ""
-        : window.ENV?.SUPABASE_ANON_KEY || "",
+      SUPABASE_URL: window.ENV?.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || "",
+      SUPABASE_ANON_KEY: window.ENV?.SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || "",
       SUPABASE_SERVICE_ROLE_KEY: "",
     } as Env;
   }

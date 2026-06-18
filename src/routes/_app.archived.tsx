@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search,
   ArrowDownUp,
-  Archive,
+  Inbox,
   Trash2,
   ChevronLeft,
   ChevronRight,
@@ -15,16 +15,16 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getInboxEmailsAction, archiveEmailsAction, deleteEmailsAction } from "@/lib/gmail/actions";
-import { isDemoMode, getDemoInboxEmails, demoArchiveEmails, demoDeleteEmails } from "@/lib/gmail/demoDb";
+import { getArchivedEmailsAction, restoreEmailsAction, permanentlyDeleteEmailsAction } from "@/lib/gmail/actions";
 import { toast } from "sonner";
 import { useSelectionState, computeSelectAllState } from "@/lib/useSelectionState";
+import { isDemoMode, getDemoArchivedEmails, demoRestoreEmails, demoPermanentlyDeleteEmails } from "@/lib/gmail/demoDb";
 
 import { RouteErrorComponent } from "./__root";
 
-export const Route = createFileRoute("/_app/inbox")({
-  head: () => ({ meta: [{ title: "Inbox — Repeatless AI" }] }),
-  component: InboxPage,
+export const Route = createFileRoute("/_app/archived")({
+  head: () => ({ meta: [{ title: "Archived — Repeatless AI" }] }),
+  component: ArchivedPage,
   errorComponent: RouteErrorComponent,
 });
 
@@ -47,7 +47,7 @@ const sortOptions = [
 
 const PAGE_SIZE = 50;
 
-function InboxPage() {
+function ArchivedPage() {
   const routerState = useRouterState();
   const locationKey = routerState.location.href;
   const [emails, setEmails] = useState<any[]>([]);
@@ -55,14 +55,14 @@ function InboxPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [cursors, setCursors] = useState<(string | null)[]>(() => {
     if (typeof window !== "undefined") {
-      const saved = sessionStorage.getItem("inbox_cursors");
+      const saved = sessionStorage.getItem("archived_cursors");
       return saved ? JSON.parse(saved) : [null];
     }
     return [null];
   });
   const [page, setPage] = useState(() => {
     if (typeof window !== "undefined") {
-      const p = sessionStorage.getItem("inbox_page");
+      const p = sessionStorage.getItem("archived_page");
       return p ? parseInt(p, 10) : 0;
     }
     return 0;
@@ -70,19 +70,19 @@ function InboxPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<(typeof filters)[number]>(() => {
     if (typeof window !== "undefined") {
-      return (sessionStorage.getItem("inbox_filter") as any) || "All";
+      return (sessionStorage.getItem("archived_filter") as any) || "All";
     }
     return "All";
   });
   const [sort, setSort] = useState<"newest" | "oldest" | "unread">(() => {
     if (typeof window !== "undefined") {
-      return (sessionStorage.getItem("inbox_sort") as any) || "newest";
+      return (sessionStorage.getItem("archived_sort") as any) || "newest";
     }
     return "newest";
   });
   const [search, setSearch] = useState(() => {
     if (typeof window !== "undefined") {
-      return sessionStorage.getItem("inbox_search") || "";
+      return sessionStorage.getItem("archived_search") || "";
     }
     return "";
   });
@@ -98,14 +98,13 @@ function InboxPage() {
   const visibleIds = emails.map((e) => e.id);
   const { isAllSelected, isIndeterminate } = computeSelectAllState(selectedIds, visibleIds);
 
-
-  const handleArchive = async () => {
+  const handleRestore = async () => {
     if (selectedIds.length === 0) return;
     setProcessingAction(true);
     const idsToProcess = [...selectedIds];
 
-    // Compute how many unread emails are being archived
-    const archivedUnreadCount = emails.filter(
+    // Compute how many unread emails are being restored
+    const restoredUnreadCount = emails.filter(
       (e) => idsToProcess.includes(e.id) && e.labels?.map((l: string) => l.toUpperCase()).includes("UNREAD")
     ).length;
     
@@ -115,39 +114,39 @@ function InboxPage() {
     setSelectedIds([]);
 
     const promise = isDemo
-      ? demoArchiveEmails(idsToProcess)
-      : archiveEmailsAction({ data: idsToProcess });
+      ? demoRestoreEmails(idsToProcess)
+      : restoreEmailsAction({ data: idsToProcess });
 
     toast.promise(
       promise,
       {
-        loading: `Archiving ${idsToProcess.length} email(s)...`,
+        loading: `Restoring ${idsToProcess.length} email(s) to Inbox...`,
         success: () => {
-          if (archivedUnreadCount > 0) {
+          if (restoredUnreadCount > 0) {
             window.dispatchEvent(
-              new CustomEvent("gmail-unread-changed", { detail: { delta: -archivedUnreadCount } })
+              new CustomEvent("gmail-unread-changed", { detail: { delta: restoredUnreadCount } })
             );
           } else {
             window.dispatchEvent(new CustomEvent("gmail-synced"));
           }
           loadEmails(filter, sort, search, page, cursors[page]);
-          return `Successfully archived ${idsToProcess.length} email(s).`;
+          return `Successfully restored ${idsToProcess.length} email(s) to Inbox.`;
         },
         error: (err) => {
           loadEmails(filter, sort, search, page, cursors[page]);
-          return `Failed to archive: ${err instanceof Error ? err.message : String(err)}`;
+          return `Failed to restore: ${err instanceof Error ? err.message : String(err)}`;
         },
       }
     );
     setProcessingAction(false);
   };
 
-  const handleDelete = async () => {
+  const handleDeletePermanently = async () => {
     if (selectedIds.length === 0) return;
     setProcessingAction(true);
     const idsToProcess = [...selectedIds];
 
-    // Compute how many unread emails are being deleted
+    // Compute how many unread emails are being permanently deleted
     const deletedUnreadCount = emails.filter(
       (e) => idsToProcess.includes(e.id) && e.labels?.map((l: string) => l.toUpperCase()).includes("UNREAD")
     ).length;
@@ -158,13 +157,13 @@ function InboxPage() {
     setSelectedIds([]);
 
     const promise = isDemo
-      ? demoDeleteEmails(idsToProcess)
-      : deleteEmailsAction({ data: idsToProcess });
+      ? demoPermanentlyDeleteEmails(idsToProcess)
+      : permanentlyDeleteEmailsAction({ data: idsToProcess });
 
     toast.promise(
       promise,
       {
-        loading: `Deleting ${idsToProcess.length} email(s)...`,
+        loading: `Permanently deleting ${idsToProcess.length} email(s)...`,
         success: () => {
           if (deletedUnreadCount > 0) {
             window.dispatchEvent(
@@ -174,11 +173,11 @@ function InboxPage() {
             window.dispatchEvent(new CustomEvent("gmail-synced"));
           }
           loadEmails(filter, sort, search, page, cursors[page]);
-          return `Successfully deleted ${idsToProcess.length} email(s).`;
+          return `Successfully deleted ${idsToProcess.length} email(s) permanently.`;
         },
         error: (err) => {
           loadEmails(filter, sort, search, page, cursors[page]);
-          return `Failed to delete: ${err instanceof Error ? err.message : String(err)}`;
+          return `Failed to delete permanently: ${err instanceof Error ? err.message : String(err)}`;
         },
       }
     );
@@ -189,8 +188,8 @@ function InboxPage() {
     (f: string, s: string, q: string, pageNum: number, cursorVal: string | null) => {
       setLoading(true);
       const fetchPromise = isDemo
-        ? getDemoInboxEmails({ filter: f, sort: s, search: q, page: pageNum })
-        : getInboxEmailsAction({
+        ? getDemoArchivedEmails({ filter: f, sort: s, search: q, page: pageNum })
+        : getArchivedEmailsAction({
             data: {
               filter: f,
               sort: s,
@@ -204,7 +203,12 @@ function InboxPage() {
         .then((res) => {
           setEmails(res.emails);
           setTotalCount(res.totalCount);
-          setUnreadCount(res.unreadCount || 0);
+          // Calculate unread count among current mapped archived emails,
+          // though typically archived emails are read.
+          const unreadNum = res.emails.filter((e: any) =>
+            e.labels?.map((l: string) => l.toUpperCase()).includes("UNREAD")
+          ).length;
+          setUnreadCount(unreadNum);
           if (res.nextCursor) {
             setCursors((prev) => {
               const copy = [...prev];
@@ -213,29 +217,30 @@ function InboxPage() {
             });
           }
         })
-        .catch((err) => console.error("Failed to load inbox emails:", err))
+        .catch((err) => console.error("Failed to load archived emails:", err))
         .finally(() => setLoading(false));
     },
     [isDemo],
   );
 
   const isInitialMountRef = useRef(true);
+  const isInitialSearchMountRef = useRef(true);
 
   // Sync state to sessionStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
-      sessionStorage.setItem("inbox_filter", filter);
-      sessionStorage.setItem("inbox_sort", sort);
-      sessionStorage.setItem("inbox_search", search);
-      sessionStorage.setItem("inbox_page", page.toString());
-      sessionStorage.setItem("inbox_cursors", JSON.stringify(cursors));
+      sessionStorage.setItem("archived_filter", filter);
+      sessionStorage.setItem("archived_sort", sort);
+      sessionStorage.setItem("archived_search", search);
+      sessionStorage.setItem("archived_page", page.toString());
+      sessionStorage.setItem("archived_cursors", JSON.stringify(cursors));
     }
   }, [filter, sort, search, page, cursors]);
 
   // Scroll listener & restore hooks
   useEffect(() => {
     const handleScroll = () => {
-      sessionStorage.setItem("inbox_scroll", window.scrollY.toString());
+      sessionStorage.setItem("archived_scroll", window.scrollY.toString());
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
@@ -243,7 +248,7 @@ function InboxPage() {
 
   useEffect(() => {
     if (!loading && emails.length > 0) {
-      const savedScroll = sessionStorage.getItem("inbox_scroll");
+      const savedScroll = sessionStorage.getItem("archived_scroll");
       if (savedScroll) {
         setTimeout(() => {
           window.scrollTo(0, parseInt(savedScroll, 10));
@@ -272,8 +277,6 @@ function InboxPage() {
       loadEmails(filter, sort, search, 0, null);
     };
 
-    // When emails are marked as read, refresh the current page in-place
-    // (preserving pagination position) so read/unread styling updates
     const handleUnreadChanged = () => {
       loadEmails(filter, sort, search, page, cursors[page]);
     };
@@ -289,7 +292,10 @@ function InboxPage() {
 
   // Debounced search (resets pagination)
   useEffect(() => {
-    if (isInitialMountRef.current) return;
+    if (isInitialSearchMountRef.current) {
+      isInitialSearchMountRef.current = false;
+      return;
+    }
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
     searchDebounce.current = setTimeout(() => {
       setPage(0);
@@ -335,15 +341,15 @@ function InboxPage() {
   const currentSortLabel = sortOptions.find((o) => o.value === sort)?.label || "Newest first";
 
   return (
-    <AppShell title="Inbox">
+    <AppShell title="Archived">
       <PageHeader
         eyebrow={
           loading
-            ? "Loading messages..."
-            : `${totalCount.toLocaleString()} messages · ${unreadCount} unread`
+            ? "Loading archived messages..."
+            : `${totalCount.toLocaleString()} archived message${totalCount !== 1 ? "s" : ""}`
         }
-        title="Inbox"
-        description="Sorted by AI relevance, then recency. Use filters to focus."
+        title="Archived"
+        description="All conversations removed from Inbox. Restore them or delete them permanently."
         actions={
           <>
             <div className="relative" ref={sortMenuRef}>
@@ -388,7 +394,7 @@ function InboxPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-10 rounded-xl border-border bg-background pl-9"
-              placeholder="Search by subject or sender…"
+              placeholder="Search archived messages…"
             />
           </div>
           <div className="flex items-center gap-2 overflow-x-auto">
@@ -411,10 +417,10 @@ function InboxPage() {
 
         <div className="flex items-center gap-1 border-b border-border bg-parchment/40 px-4 py-2 text-xs text-muted-foreground sm:px-6">
           <input
-            id="inbox-select-all"
+            id="archived-select-all"
             type="checkbox"
             className="mr-2 h-3.5 w-3.5 accent-navy cursor-pointer"
-            aria-label="Select all emails on this page"
+            aria-label="Select all archived emails on this page"
             checked={isAllSelected}
             ref={(el) => {
               if (el) el.indeterminate = isIndeterminate;
@@ -432,9 +438,9 @@ function InboxPage() {
             size="sm"
             className="h-7 gap-1.5 px-2 text-xs"
             disabled={selectedIds.length === 0 || processingAction}
-            onClick={handleArchive}
+            onClick={handleRestore}
           >
-            <Archive className="h-3.5 w-3.5" /> Archive
+            <Inbox className="h-3.5 w-3.5" /> Restore to Inbox
             {selectedIds.length > 0 && (
               <span className="ml-0.5 rounded-full bg-navy/10 px-1.5 py-0.5 text-[10px] font-semibold text-navy">
                 {selectedIds.length}
@@ -446,9 +452,9 @@ function InboxPage() {
             size="sm"
             className="h-7 gap-1.5 px-2 text-xs text-rust hover:text-rust"
             disabled={selectedIds.length === 0 || processingAction}
-            onClick={handleDelete}
+            onClick={handleDeletePermanently}
           >
-            <Trash2 className="h-3.5 w-3.5" /> Delete
+            <Trash2 className="h-3.5 w-3.5" /> Delete permanently
             {selectedIds.length > 0 && (
               <span className="ml-0.5 rounded-full bg-rust/10 px-1.5 py-0.5 text-[10px] font-semibold text-rust">
                 {selectedIds.length}
@@ -464,14 +470,14 @@ function InboxPage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
               <Loader2 className="h-6 w-6 animate-spin text-navy" />
-              <span className="text-sm">Loading your inbox...</span>
+              <span className="text-sm">Loading archived messages...</span>
             </div>
           ) : emails.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
               <span className="text-sm">
                 {totalCount === 0
-                  ? "No emails synced yet. Click Sync Gmail in Settings."
-                  : "No messages match the current filter."}
+                  ? "No archived messages found."
+                  : "No archived messages match the current filter."}
               </span>
             </div>
           ) : (
@@ -485,7 +491,7 @@ function InboxPage() {
                     prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
                   );
                 }}
-                from="inbox"
+                from="archived"
               />
             ))
           )}

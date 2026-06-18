@@ -29,6 +29,9 @@ function OAuthCallback() {
   const hasExchanged = useRef(false);
 
   useEffect(() => {
+    // Clear logged out cookie so authentication is recognized on server
+    document.cookie = "inbox_harmony_logged_out=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
     if (googleError) {
       setStatus("error");
       setErrorMessage(googleError);
@@ -123,7 +126,7 @@ function OAuthCallback() {
 
           <div className="flex flex-col gap-2 pt-2">
             <Button
-              onClick={() => navigate({ to: "/connect" })}
+              onClick={() => navigate({ to: "/connect", search: { reconnect: undefined } })}
               className="w-full rounded-xl bg-navy text-ivory hover:bg-navy/90"
             >
               Try Again

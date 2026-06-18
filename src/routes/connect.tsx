@@ -1,43 +1,188 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { AuthShell } from "@/components/auth-shell";
 import { ShieldCheck, Lock, Eye, RefreshCw, Loader2, AlertCircle } from "lucide-react";
-import { useState } from "react";
-import { getGoogleAuthUrlAction } from "@/lib/gmail/actions";
+import { useState, useEffect } from "react";
+import { getGoogleAuthUrlAction, saveGoogleProviderTokensAction } from "@/lib/gmail/actions";
+import { getAuthenticatedUser, supabaseAdmin } from "@/lib/supabase/server";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { toast } from "sonner";
+
+type ConnectSearchParams = {
+  reconnect?: string;
+  forceSelect?: string;
+  code?: string;
+  state?: string;
+  error?: string;
+  error_description?: string;
+};
 
 export const Route = createFileRoute("/connect")({
+  validateSearch: (search: Record<string, unknown>): ConnectSearchParams => ({
+    reconnect: search.reconnect as string | undefined,
+    forceSelect: search.forceSelect as string | undefined,
+    code: search.code as string | undefined,
+    state: search.state as string | undefined,
+    error: search.error as string | undefined,
+    error_description: search.error_description as string | undefined,
+  }),
   head: () => ({ meta: [{ title: "Connect Gmail — Repeatless AI" }] }),
+  beforeLoad: async ({ search }) => {
+    const isReconnect = (search as any)?.reconnect === "true";
+    const hasCode = !!(search as any)?.code || (typeof window !== "undefined" && (window.location.search.includes("code=") || window.location.hash.includes("access_token=")));
+    let isAuthenticated = false;
+    let hasAccount = false;
+
+    if (typeof window === "undefined") {
+      const user = await getAuthenticatedUser();
+      isAuthenticated = !!user;
+      if (user && supabaseAdmin) {
+        const { data } = await supabaseAdmin
+          .from("gmail_accounts")
+          .select("id")
+          .eq("user_id", user.id)
+          .limit(1);
+        hasAccount = !!data && data.length > 0;
+      }
+    } else {
+      const supabase = getSupabaseBrowser();
+      if (supabase) {
+        const { data } = await supabase.auth.getSession();
+        isAuthenticated = !!data?.session;
+        if (data?.session?.user) {
+          const { data: accounts } = await supabase
+            .from("gmail_accounts")
+            .select("id")
+            .limit(1);
+          hasAccount = !!accounts && accounts.length > 0;
+        }
+      }
+    }
+
+    if (!isAuthenticated && !hasCode && process.env.NODE_ENV !== "development") {
+      throw redirect({
+        to: "/signin",
+      });
+    }
+
+    if (isAuthenticated && hasAccount && !isReconnect && !hasCode) {
+      throw redirect({
+        to: "/dashboard",
+      });
+    }
+  },
   component: Connect,
 });
 
-const trust = [
+const steps = [
+  {
+    icon: ShieldCheck,
+    title: "Secure Read-Only Access",
+    desc: "Scan and classify newsletters, receipts, notifications, and work emails without affecting your inbox status.",
+  },
   {
     icon: Lock,
-    title: "End-to-end encrypted",
-    desc: "All sync traffic is encrypted in transit and at rest.",
+    title: "Optional Send Scopes",
+    desc: "Reply directly or archive newsletters. Your actions are perfectly synced and secured with OAuth 2.0.",
   },
   {
     icon: Eye,
-    title: "Read-only by default",
-    desc: "We never send, modify, or delete email without your consent.",
-  },
-  {
-    icon: RefreshCw,
-    title: "Revoke any time",
-    desc: "One click in Settings disconnects Repeatless and purges data.",
+    title: "Privacy Focused",
+    desc: "Your data stays on your system. We process everything locally and securely.",
   },
 ];
 
 function Connect() {
+  const search = Route.useSearch();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Clear logged out cookie so authentication is recognized
+    document.cookie = "inbox_harmony_logged_out=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+
+    let isSubscribed = true;
+
+    const processSession = async (session: any) => {
+      if (!session) return;
+      const sessionAny = session as any;
+      if (sessionAny?.provider_token && session?.user?.app_metadata?.provider === "google") {
+        console.log("[Connect] Found Google provider token in session. Syncing to gmail_accounts...");
+        if (isSubscribed) setLoading(true);
+        try {
+          const result = await saveGoogleProviderTokensAction({
+            data: {
+              accessToken: sessionAny.provider_token,
+              refreshToken: sessionAny.provider_refresh_token || undefined,
+              email: session.user.email || "",
+            }
+          });
+          if (result.success && isSubscribed) {
+            toast.success("Gmail connected successfully!");
+            navigate({ to: "/dashboard" });
+          } else if (!result.success) {
+            throw new Error(result.error || "Failed to sync provider tokens.");
+          }
+        } catch (err) {
+          console.log("[Connect] Auto-sync of Google provider tokens not completed:", err);
+          if (isSubscribed) setLoading(false);
+        }
+      } else {
+        // Check if we already have a connected Gmail account to redirect immediately
+        // but only if we're not explicitly trying to reconnect/select another account
+        const isReconnect = search.reconnect === "true" || search.forceSelect === "true";
+        if (!isReconnect && !search.code) {
+          try {
+            const { data: accounts } = await supabase
+              .from("gmail_accounts")
+              .select("id")
+              .limit(1);
+            if (accounts && accounts.length > 0 && isSubscribed) {
+              navigate({ to: "/dashboard" });
+            }
+          } catch (err) {
+            console.error("[Connect] Error checking connected accounts:", err);
+          }
+        }
+      }
+    };
+
+    // Check immediate session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && isSubscribed) {
+        processSession(session);
+      }
+    });
+
+    // Listen to changes (PKCE exchange fires event)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log(`[Connect] Auth state event: ${event}`);
+      if (session && isSubscribed) {
+        processSession(session);
+      }
+    });
+
+    return () => {
+      isSubscribed = false;
+      subscription.unsubscribe();
+    };
+  }, [navigate, search.reconnect, search.forceSelect, search.code]);
 
   const handleAuthorize = async () => {
     setLoading(true);
     setError(null);
     try {
       const redirectUri = `${window.location.origin}/oauth-callback`;
-      const result = await getGoogleAuthUrlAction({ data: redirectUri });
+      const result = await getGoogleAuthUrlAction({
+        data: {
+          redirectUri,
+          forceSelectAccount: search.forceSelect === "true" || search.reconnect === "true",
+        }
+      });
       if (result?.url) {
         window.location.href = result.url;
       } else {
@@ -90,7 +235,7 @@ function Connect() {
       </div>
 
       <div className="mt-7 space-y-3">
-        {trust.map((t) => (
+        {steps.map((t) => (
           <div
             key={t.title}
             className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3"

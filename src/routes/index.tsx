@@ -9,6 +9,7 @@ import {
   FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { enterDemoMode } from "@/lib/gmail/demoDb";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -87,14 +88,16 @@ function Welcome() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Link to="/dashboard">
-                <Button
-                  variant="outline"
-                  className="h-11 rounded-xl border-border bg-card px-6 text-[15px] text-charcoal hover:bg-beige"
-                >
-                  See live demo
-                </Button>
-              </Link>
+              <Button
+                variant="outline"
+                className="h-11 rounded-xl border-border bg-card px-6 text-[15px] text-charcoal hover:bg-beige"
+                onClick={() => {
+                  enterDemoMode();
+                  window.location.href = "/dashboard";
+                }}
+              >
+                See live demo
+              </Button>
             </div>
             <div
               id="security"
