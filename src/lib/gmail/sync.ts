@@ -51,6 +51,27 @@ function classifyEmailCategoryLocal(
 }
 
 /**
+ * Zero-dependency concurrency-controlled map helper.
+ */
+async function concurrentMap<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+  let index = 0;
+  async function worker() {
+    while (index < items.length) {
+      const i = index++;
+      results[i] = await fn(items[i]);
+    }
+  }
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, worker);
+  await Promise.all(workers);
+  return results;
+}
+
+/**
  * Checks if the Gmail account's access token is expired or close to expiration (within 5 minutes)
  * and refreshes it if necessary.
  *
@@ -382,6 +403,14 @@ export async function runBackgroundSyncProcess(accountId: string): Promise<void>
       
       // Update historyId and sync timestamp
       await updateHistoryIdAndLastSynced(accountId, accessToken);
+
+      // Trigger Phase 2 (Categorization) and Phase 3 (AI Summarization) in the background!
+      runBackgroundCategorization(accountId)
+        .then(() => runBackgroundSummarization(accountId))
+        .catch((err) => {
+          console.error(`[Background Processing Error] during incremental sync for ${accountId}:`, err);
+        });
+
       return;
     }
     
@@ -407,7 +436,14 @@ export async function runBackgroundSyncProcess(accountId: string): Promise<void>
     
     // Update historyId and sync timestamp
     await updateHistoryIdAndLastSynced(accountId, accessToken);
-    
+
+    // Trigger Phase 2 (Categorization) and Phase 3 (AI Summarization) in the background!
+    runBackgroundCategorization(accountId)
+      .then(() => runBackgroundSummarization(accountId))
+      .catch((err) => {
+        console.error(`[Background Processing Error] during full sync for ${accountId}:`, err);
+      });
+      
   } catch (err) {
     console.error(`[Background Sync Process Failed] for ${accountId}:`, err);
     await updateSyncStatus(accountId, { status: "error" });
@@ -415,6 +451,146 @@ export async function runBackgroundSyncProcess(accountId: string): Promise<void>
     activeServerSyncs.delete(accountId);
     console.log(`[Background Sync] Finished sync task in memory for account ${accountId}`);
   }
+}
+
+/**
+ * Bulk imports a batch of Gmail messages/threads into the database as fast as possible.
+ * Uses controlled concurrency for Gmail fetching and Supabase bulk upserts.
+ */
+async function syncBatchMessages(
+  accountId: string,
+  accessToken: string,
+  messages: { id: string; threadId: string }[]
+): Promise<number> {
+  if (messages.length === 0) return 0;
+  if (!supabaseAdmin) throw new Error("Database connection unavailable.");
+
+  const CONCURRENCY = 4;
+  const BATCH_SIZE = 100;
+  let processedCount = 0;
+
+  for (let offset = 0; offset < messages.length; offset += BATCH_SIZE) {
+    const chunk = messages.slice(offset, offset + BATCH_SIZE);
+
+    // Fetch details in parallel with controlled concurrency
+    const detailsResults = await concurrentMap(chunk, CONCURRENCY, async (msg) => {
+      try {
+        const details = await fetchGmailMessageDetails(accessToken, msg.id);
+        return { msg, details, success: true };
+      } catch (err) {
+        console.error(`[Gmail Sync] Failed to fetch details for msg ${msg.id}:`, err);
+        return { msg, details: null, success: false };
+      }
+    });
+
+    const validDetails = detailsResults.filter((r) => r.success && r.details);
+    if (validDetails.length === 0) continue;
+
+    // Deduplicate thread payloads in memory (getting the max/latest receivedAt)
+    const threadsToUpsertMap = new Map<string, any>();
+    for (const item of validDetails) {
+      const details = item.details;
+      const internalDateMs = Number(details.internalDate);
+      const receivedAt = !isNaN(internalDateMs) && internalDateMs > 0
+        ? new Date(internalDateMs).toISOString()
+        : new Date().toISOString();
+
+      const existing = threadsToUpsertMap.get(item.msg.threadId);
+      if (!existing || receivedAt > existing.last_message_at) {
+        threadsToUpsertMap.set(item.msg.threadId, {
+          gmail_account_id: accountId,
+          gmail_thread_id: item.msg.threadId,
+          last_message_at: receivedAt,
+        });
+      }
+    }
+
+    // Bulk upsert threads
+    const { data: dbThreads, error: threadsErr } = await supabaseAdmin
+      .from("email_threads")
+      .upsert(Array.from(threadsToUpsertMap.values()), {
+        onConflict: "gmail_account_id,gmail_thread_id",
+      })
+      .select("id, gmail_thread_id");
+
+    if (threadsErr || !dbThreads) {
+      console.error("[Gmail Sync] Bulk thread upsert failed:", threadsErr?.message);
+      continue;
+    }
+
+    const threadIdMap = new Map<string, string>();
+    dbThreads.forEach((t) => {
+      threadIdMap.set(t.gmail_thread_id, t.id);
+    });
+
+    // Extract and build email payloads
+    const emailPayloads: any[] = [];
+    for (const item of validDetails) {
+      const details = item.details;
+      const headers = details.payload?.headers || [];
+      const subject = getHeaderValue(headers, "subject");
+      const fromRaw = getHeaderValue(headers, "from");
+      const fromAddress = parseFromAddress(fromRaw);
+
+      if (!fromAddress) continue;
+
+      const toAddresses = parseRecipientAddresses(getHeaderValue(headers, "to"));
+      const ccAddresses = parseRecipientAddresses(getHeaderValue(headers, "cc"));
+      const bccAddresses = parseRecipientAddresses(getHeaderValue(headers, "bcc"));
+      const inReplyTo = getHeaderValue(headers, "in-reply-to");
+
+      const referencesRaw = getHeaderValue(headers, "references");
+      const referencesHeader = referencesRaw
+        ? referencesRaw.split(/\s+/).map((r) => r.trim()).filter(Boolean)
+        : [];
+
+      const internalDateMs = Number(details.internalDate);
+      const receivedAt = !isNaN(internalDateMs) && internalDateMs > 0
+        ? new Date(internalDateMs).toISOString()
+        : new Date().toISOString();
+
+      const body = parseMessageBody(details.payload);
+      const labels = details.labelIds || [];
+
+      const dbThreadId = threadIdMap.get(item.msg.threadId);
+      if (!dbThreadId) continue;
+
+      emailPayloads.push({
+        gmail_account_id: accountId,
+        thread_id: dbThreadId,
+        gmail_message_id: item.msg.id,
+        from_address: fromAddress,
+        to_addresses: toAddresses,
+        cc_addresses: ccAddresses,
+        bcc_addresses: bccAddresses,
+        subject: subject || "(No Subject)",
+        body_text: body.text || null,
+        body_html: body.html || null,
+        labels: labels,
+        in_reply_to: inReplyTo || null,
+        references_header: referencesHeader,
+        received_at: receivedAt,
+      });
+    }
+
+    if (emailPayloads.length === 0) continue;
+
+    // Bulk upsert emails
+    const { error: emailsErr } = await supabaseAdmin
+      .from("emails")
+      .upsert(emailPayloads, {
+        onConflict: "gmail_account_id,gmail_message_id",
+      });
+
+    if (emailsErr) {
+      console.error("[Gmail Sync] Bulk email upsert failed:", emailsErr.message);
+      continue;
+    }
+
+    processedCount += validDetails.length;
+  }
+
+  return processedCount;
 }
 
 async function syncRecentEmailsPhase(accountId: string, accessToken: string): Promise<void> {
@@ -450,19 +626,43 @@ async function syncRecentEmailsPhase(accountId: string, accessToken: string): Pr
   } while (pageToken);
   
   console.log(`[Background Sync] Phase 1: Found ${messagesToSync.length} recent messages to sync.`);
-  await updateSyncStatus(accountId, { status: "syncing_recent", imported: 0, total: messagesToSync.length });
-  
-  let imported = 0;
-  for (const msg of messagesToSync) {
-    try {
-      const synced = await syncSingleMessage(accountId, accessToken, msg);
-      if (synced) {
-        imported++;
-        await updateSyncStatus(accountId, { imported });
-      }
-    } catch (e) {
-      console.error(`[Background Sync] Error syncing single recent message ${msg.id}:`, e);
+
+  // Filter out emails we already have in our database
+  let existingEmails: { gmail_message_id: string }[] = [];
+  {
+    let page = 0;
+    const PAGE_SIZE = 1000;
+    while (true) {
+      const { data: pageData } = await supabaseAdmin!
+        .from("emails")
+        .select("gmail_message_id")
+        .eq("gmail_account_id", accountId)
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      if (!pageData || pageData.length === 0) break;
+      existingEmails.push(...pageData);
+      page++;
+      if (pageData.length < PAGE_SIZE) break;
     }
+  }
+  const existingIds = new Set((existingEmails || []).map(e => e.gmail_message_id));
+  const newMessages = messagesToSync.filter(msg => !existingIds.has(msg.id));
+  
+  console.log(`[Background Sync] Phase 1: Filtered ${messagesToSync.length} -> ${newMessages.length} new messages.`);
+  
+  const alreadyImported = existingIds.size;
+  await updateSyncStatus(accountId, {
+    status: "syncing_recent",
+    imported: alreadyImported,
+    total: alreadyImported + newMessages.length
+  });
+  
+  let imported = alreadyImported;
+  const BATCH_SIZE = 100;
+  for (let i = 0; i < newMessages.length; i += BATCH_SIZE) {
+    const chunk = newMessages.slice(i, i + BATCH_SIZE);
+    const count = await syncBatchMessages(accountId, accessToken, chunk);
+    imported += count;
+    await updateSyncStatus(accountId, { imported });
   }
 }
 
@@ -527,16 +727,12 @@ async function syncHistoricalEmailsPhase(accountId: string, accessToken: string)
   });
   
   let imported = alreadyImported;
-  for (const msg of newMessages) {
-    try {
-      const synced = await syncSingleMessage(accountId, accessToken, msg);
-      if (synced) {
-        imported++;
-        await updateSyncStatus(accountId, { imported });
-      }
-    } catch (e) {
-      console.error(`[Background Sync] Error syncing single historical message ${msg.id}:`, e);
-    }
+  const BATCH_SIZE = 100;
+  for (let i = 0; i < newMessages.length; i += BATCH_SIZE) {
+    const chunk = newMessages.slice(i, i + BATCH_SIZE);
+    const count = await syncBatchMessages(accountId, accessToken, chunk);
+    imported += count;
+    await updateSyncStatus(accountId, { imported });
   }
 }
 
@@ -716,13 +912,32 @@ async function syncIncremental(
 
     const messagesToSync = Array.from(msgMap.entries()).map(([id, threadId]) => ({ id, threadId }));
     console.log(`[Gmail Sync] Incremental: found ${messagesToSync.length} new messages`);
-    
-    for (const msg of messagesToSync) {
-      try {
-        const synced = await syncSingleMessage(accountId, accessToken, msg);
-        if (synced) syncedCount++;
-      } catch (e) {
-        console.error(`[Gmail Sync] Incremental msg error ${msg.id}:`, e);
+
+    if (messagesToSync.length > 0) {
+      // Filter out emails we already have in our database
+      let existingEmails: { gmail_message_id: string }[] = [];
+      {
+        let page = 0;
+        const PAGE_SIZE = 1000;
+        while (true) {
+          const { data: pageData } = await supabaseAdmin!
+            .from("emails")
+            .select("gmail_message_id")
+            .eq("gmail_account_id", accountId)
+            .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+          if (!pageData || pageData.length === 0) break;
+          existingEmails.push(...pageData);
+          page++;
+          if (pageData.length < PAGE_SIZE) break;
+        }
+      }
+      const existingIds = new Set((existingEmails || []).map(e => e.gmail_message_id));
+      const newMessages = messagesToSync.filter(msg => !existingIds.has(msg.id));
+
+      console.log(`[Gmail Sync] Incremental: Filtered ${messagesToSync.length} -> ${newMessages.length} new messages.`);
+
+      if (newMessages.length > 0) {
+        syncedCount = await syncBatchMessages(accountId, accessToken, newMessages);
       }
     }
   } else {
@@ -1398,5 +1613,162 @@ export async function syncGmailThread(accountId: string, gmailThreadId: string):
         console.error(`[syncGmailThread Summarization] Thread ${dbThread.id}:`, e);
       }
     }).catch((e) => console.error("[syncGmailThread Summarization] Background error:", e));
+  }
+}
+
+/**
+ * Run email categorization in the background after import completes.
+ * Updates category counts progressively.
+ */
+async function runBackgroundCategorization(accountId: string): Promise<void> {
+  if (!supabaseAdmin) return;
+  console.log(`[Gmail Sync Phase 2] Starting email categorization for ${accountId}`);
+  
+  try {
+    // Left join email_categories to find emails lacking category
+    const { data: emailsRaw, error: fetchErr } = await supabaseAdmin
+      .from("emails")
+      .select("id, subject, from_address, body_text, labels, email_categories(email_id)")
+      .eq("gmail_account_id", accountId);
+      
+    if (fetchErr || !emailsRaw) {
+      console.error("[Gmail Sync Phase 2] Failed to fetch emails for categorization:", fetchErr?.message);
+      return;
+    }
+    
+    const uncategorized = emailsRaw.filter((e: any) => {
+      if (!e.email_categories) return true;
+      if (Array.isArray(e.email_categories) && e.email_categories.length === 0) return true;
+      return false;
+    });
+    
+    console.log(`[Gmail Sync Phase 2] Found ${uncategorized.length} uncategorized emails for ${accountId}`);
+    if (uncategorized.length === 0) return;
+    
+    const categoriesPayloads: any[] = [];
+    for (const e of uncategorized) {
+      const category = classifyEmailCategoryLocal(
+        e.labels || [],
+        e.subject || "(No Subject)",
+        e.from_address || "",
+        e.body_text || ""
+      );
+      categoriesPayloads.push({
+        email_id: e.id,
+        category,
+        confidence_score: 0.75,
+        reasoning: "Auto-classified during post-sync phase 2 based on labels and content keywords",
+      });
+    }
+    
+    // Bulk upsert categories in chunks of 200 to show progressive updates
+    const BATCH_SIZE = 200;
+    let categorizedCount = 0;
+    for (let i = 0; i < categoriesPayloads.length; i += BATCH_SIZE) {
+      const chunk = categoriesPayloads.slice(i, i + BATCH_SIZE);
+      const { error: upsertErr } = await supabaseAdmin
+        .from("email_categories")
+        .upsert(chunk, { onConflict: "email_id" });
+        
+      if (upsertErr) {
+        console.error(`[Gmail Sync Phase 2] Bulk categorization upsert failed at offset ${i}:`, upsertErr.message);
+      } else {
+        categorizedCount += chunk.length;
+        console.log(`[Gmail Sync Phase 2] Categorized ${categorizedCount}/${categoriesPayloads.length} emails...`);
+      }
+    }
+    console.log(`[Gmail Sync Phase 2] Categorization completed for ${categorizedCount} emails.`);
+  } catch (err) {
+    console.error("[Gmail Sync Phase 2] Categorization process failed:", err);
+  }
+}
+
+/**
+ * Run AI summaries in the background only.
+ * Skip already summarized emails.
+ * Respect Gemini quotas and stop retry storms.
+ */
+async function runBackgroundSummarization(accountId: string): Promise<void> {
+  if (!supabaseAdmin) return;
+  console.log(`[Gmail Sync Phase 3] Starting AI summarization for ${accountId}`);
+  
+  try {
+    // 1. Fetch unsummarized emails (only IMPORTANT or INBOX emails)
+    const { data: emailsRaw, error: fetchErr } = await supabaseAdmin
+      .from("emails")
+      .select("id, subject, body_text, labels, thread_id, email_summaries(email_id)")
+      .eq("gmail_account_id", accountId);
+      
+    if (fetchErr || !emailsRaw) {
+      console.error("[Gmail Sync Phase 3] Failed to fetch emails for summarization:", fetchErr?.message);
+      return;
+    }
+    
+    const unsummarizedEmails = emailsRaw.filter((e: any) => {
+      const hasSummary = e.email_summaries && (!Array.isArray(e.email_summaries) || e.email_summaries.length > 0);
+      if (hasSummary) return false;
+      
+      const labels = e.labels || [];
+      const isImportant = labels.includes("IMPORTANT") || labels.includes("STARRED");
+      const isInbox = labels.includes("INBOX");
+      return isImportant || isInbox;
+    });
+    
+    console.log(`[Gmail Sync Phase 3] Found ${unsummarizedEmails.length} emails requiring AI summaries for ${accountId}`);
+    
+    // 2. Fetch unsummarized threads
+    const { data: threadsRaw, error: fetchThreadsErr } = await supabaseAdmin
+      .from("email_threads")
+      .select("id, thread_summaries(thread_id)")
+      .eq("gmail_account_id", accountId);
+      
+    if (fetchThreadsErr || !threadsRaw) {
+      console.error("[Gmail Sync Phase 3] Failed to fetch threads for summarization:", fetchThreadsErr?.message);
+      return;
+    }
+    
+    const unsummarizedThreads = threadsRaw.filter((t: any) => {
+      const hasSummary = t.thread_summaries && (!Array.isArray(t.thread_summaries) || t.thread_summaries.length > 0);
+      return !hasSummary;
+    });
+    
+    console.log(`[Gmail Sync Phase 3] Found ${unsummarizedThreads.length} threads requiring AI summaries for ${accountId}`);
+    
+    // 3. Process email summaries sequentially
+    for (const email of unsummarizedEmails) {
+      if (getQuotaStatus().aiQuotaExceeded) {
+        console.warn("[Gmail Sync Phase 3] AI Quota exceeded, stopping email summarization background task.");
+        return;
+      }
+      
+      try {
+        await summarizeAndSaveEmail(email.id, email.subject || "(No Subject)", email.body_text || "");
+        await new Promise((r) => setTimeout(r, 1000));
+        
+        await generateAndSaveEmailEmbedding(email.id, email.thread_id, email.subject || "(No Subject)", email.body_text || "");
+        await new Promise((r) => setTimeout(r, 1000));
+      } catch (err) {
+        console.error(`[Gmail Sync Phase 3] Summarization failed for email ${email.id}:`, err);
+      }
+    }
+    
+    // 4. Process thread summaries
+    for (const thread of unsummarizedThreads) {
+      if (getQuotaStatus().aiQuotaExceeded) {
+        console.warn("[Gmail Sync Phase 3] AI Quota exceeded, stopping thread summarization background task.");
+        return;
+      }
+      
+      try {
+        await summarizeAndSaveThread(thread.id);
+        await new Promise((r) => setTimeout(r, 1500));
+      } catch (err) {
+        console.error(`[Gmail Sync Phase 3] Summarization failed for thread ${thread.id}:`, err);
+      }
+    }
+    
+    console.log("[Gmail Sync Phase 3] Summarization phase completed.");
+  } catch (err) {
+    console.error("[Gmail Sync Phase 3] Summarization process failed:", err);
   }
 }
