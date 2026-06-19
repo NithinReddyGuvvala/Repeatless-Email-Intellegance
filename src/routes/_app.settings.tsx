@@ -376,7 +376,7 @@ function AccountSection() {
     } catch (err) {
       console.error("Sign out error:", err);
     } finally {
-      window.location.replace("/signin?logout=true");
+      window.location.replace("/");
     }
   };
 
@@ -412,7 +412,7 @@ function AccountSection() {
       console.error("Google account disconnect error:", err);
       toast.error("Failed to disconnect Google Account.", { id: toastId });
     } finally {
-      window.location.replace("/signin?logout=true");
+      window.location.replace("/");
     }
   };
 

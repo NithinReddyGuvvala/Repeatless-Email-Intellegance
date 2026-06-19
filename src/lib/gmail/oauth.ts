@@ -38,7 +38,7 @@ export function getGoogleAuthUrl(redirectUri: string, forceSelectAccount?: boole
     response_type: "code",
     scope: scopes.join(" "),
     access_type: "offline",
-    prompt: forceSelectAccount ? "select_account consent" : "consent", // Forces refresh token + new scope consent or allows switching accounts
+    prompt: "select_account consent",
   });
 
   return `${GOOGLE_AUTH_ENDPOINT}?${params.toString()}`;

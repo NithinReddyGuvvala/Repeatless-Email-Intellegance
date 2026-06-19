@@ -136,7 +136,7 @@ function SignIn() {
           scopes: "openid email profile https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.compose",
           queryParams: {
             access_type: "offline",
-            prompt: "consent select_account",
+            prompt: "select_account",
           },
           redirectTo,
         },

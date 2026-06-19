@@ -881,10 +881,34 @@ export const getInboxEmailsAction = createServerFn()
           nextCursor = `offset:${parsedOffset + pageSize}`;
         }
       } else {
-        // Date sorting (newest/oldest) using true keyset pagination (cursor Date + ID)
+        // 1. Get exact total count matching filters without cursor and limit
+        let baseQuery = supabaseAdmin
+          .from("emails")
+          .select("id", { count: "exact", head: true })
+          .in("gmail_account_id", accountIds)
+          .contains("labels", ["INBOX"]);
+
+        // Apply filters to count query
+        if (search && search.trim()) {
+          const qTrim = search.trim();
+          baseQuery = baseQuery.or(`subject.ilike.%${qTrim}%,from_address.ilike.%${qTrim}%,body_text.ilike.%${qTrim}%`);
+        }
+        if (filter === "Unread") {
+          baseQuery = baseQuery.contains("labels", ["UNREAD"]);
+        } else if (filter !== "All") {
+          baseQuery = baseQuery.eq("email_categories.category", filter);
+        }
+
+        const { count: exactCount, error: countError } = await baseQuery;
+        if (countError) {
+          throw new Error(`Failed to count emails: ${countError.message}`);
+        }
+        totalCount = exactCount || 0;
+
+        // 2. Date sorting (newest/oldest) using true keyset pagination (cursor Date + ID)
         let query = supabaseAdmin
           .from("emails")
-          .select(selectFields, { count: "exact" })
+          .select(selectFields)
           .in("gmail_account_id", accountIds)
           .contains("labels", ["INBOX"]);
 
@@ -917,14 +941,13 @@ export const getInboxEmailsAction = createServerFn()
 
         query = query.limit(pageSize);
 
-        const { data, count, error } = await query;
+        const { data, error } = await query;
         if (error) {
           throw new Error(`Failed to query emails: ${error.message}`);
         }
 
         dbEmails = data || [];
-        totalCount = count || 0;
-
+        
         if (dbEmails.length === pageSize) {
           const lastEmail = dbEmails[dbEmails.length - 1];
           nextCursor = `${lastEmail.received_at},${lastEmail.id}`;
@@ -1601,7 +1624,7 @@ export const getDashboardDataAction = createServerFn()
         { count: emailSummariesCount },
       ] = await Promise.all([
         supabaseAdmin.from("emails").select("id", { count: "exact", head: true }).in("gmail_account_id", accountIds),
-        supabaseAdmin.from("emails").select("id", { count: "exact", head: true }).in("gmail_account_id", accountIds).contains("labels", ["UNREAD"]),
+        supabaseAdmin.from("emails").select("id", { count: "exact", head: true }).in("gmail_account_id", accountIds).contains("labels", ["INBOX", "UNREAD"]),
         supabaseAdmin.from("email_threads").select("id", { count: "exact", head: true }).in("gmail_account_id", accountIds),
         supabaseAdmin.from("emails").select("id", { count: "exact", head: true }).in("gmail_account_id", accountIds).contains("labels", ["CATEGORY_PROMOTIONS"]),
         supabaseAdmin.from("email_summaries").select("email_id, emails!inner(gmail_account_id)", { count: "exact", head: true }).in("emails.gmail_account_id", accountIds),
@@ -1615,9 +1638,9 @@ export const getDashboardDataAction = createServerFn()
       const newsletterCategoryCount = catData.categories.find(c => c.name === "Newsletter")?.count || 0;
       const newsletterCount = Math.max(newsletterLabelCount || 0, newsletterCategoryCount);
 
-      const finalTotal = totalThreadsCached ?? threadCount ?? 0;
-      const finalUnread = unreadThreadsCached ?? unreadCount ?? 0;
-      const finalThreads = inboxThreadsCached ?? threadCount ?? 0;
+      const finalTotal = totalCount ?? 0;
+      const finalUnread = unreadCount ?? 0;
+      const finalThreads = threadCount ?? 0;
 
       // Validation assertions
       const sumCategoryCounts = catData.categories.reduce((sum, c) => sum + c.count, 0);

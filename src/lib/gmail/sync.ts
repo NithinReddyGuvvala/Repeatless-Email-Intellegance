@@ -996,9 +996,35 @@ export async function refreshCachedGmailCounts(accountId: string, accessToken?: 
     pageToken = data.nextPageToken || "";
   } while (pageToken);
 
+  // Fetch current database counts of threads and active sync status
+  const { count: dbThreadsCount } = await supabaseAdmin!
+    .from("email_threads")
+    .select("id", { count: "exact", head: true })
+    .eq("gmail_account_id", accountId);
+
+  let status = "completed";
+  const { data: accountData } = await supabaseAdmin!
+    .from("gmail_accounts")
+    .select("sync_status, sync_token")
+    .eq("id", accountId)
+    .single();
+
+  if (accountData) {
+    let currentStatus = accountData.sync_status;
+    if (!currentStatus && accountData.sync_token) {
+      try {
+        const parsed = JSON.parse(accountData.sync_token);
+        currentStatus = parsed?.status;
+      } catch (e) {}
+    }
+    if (currentStatus === "syncing" || currentStatus === "syncing_recent" || currentStatus === "syncing_historical") {
+      status = currentStatus;
+    }
+  }
+
   const nextStatus = {
-    status: "completed",
-    imported: totalThreads,
+    status,
+    imported: dbThreadsCount || 0,
     total: totalThreads,
     totalThreads,
     unreadThreads,
