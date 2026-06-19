@@ -56,41 +56,30 @@ export async function getAuthenticatedUser(): Promise<{ id: string; email: strin
   let token: string | null = null;
   let isLoggedOutCookie = false;
 
-  // 1. Try to parse headers and cookies using vinxi/http
+  // 1. Try to parse headers and cookies using TanStack Start's server utilities
   try {
-    const { getEvent, getHeaders } = (await new Function('return import("vinxi/http")')()) as {
-      getEvent: () => unknown;
-      getHeaders: (event: unknown) => Record<string, string | undefined>;
-    };
-    const event = getEvent();
-    if (event) {
-      const headers = getHeaders(event);
-      const cookieHeader = headers["cookie"] || "";
-      const cookies = Object.fromEntries(
-        cookieHeader.split(";").map((c: string) => {
-          const parts = c.trim().split("=");
-          return [parts[0], parts.slice(1).join("=")];
-        }),
+    const { getCookies, getRequestHeaders } = await import("@tanstack/react-start/server");
+    const headers = (getRequestHeaders() as any) || {};
+    const cookies = getCookies() || {};
+
+    isLoggedOutCookie = cookies["inbox_harmony_logged_out"] === "true";
+
+    // Check Authorization Bearer header
+    const authHeader = headers["authorization"];
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.substring(7);
+    } else {
+      // Parse cookies for sb-*-auth-token
+      const supabaseCookieKey = Object.keys(cookies).find(
+        (key) => key.startsWith("sb-") && key.endsWith("-auth-token"),
       );
-      isLoggedOutCookie = cookies["inbox_harmony_logged_out"] === "true";
 
-      // Check Authorization Bearer header
-      const authHeader = headers["authorization"];
-      if (authHeader && authHeader.startsWith("Bearer ")) {
-        token = authHeader.substring(7);
-      } else {
-        // Parse cookies for sb-*-auth-token
-        const supabaseCookieKey = Object.keys(cookies).find(
-          (key) => key.startsWith("sb-") && key.endsWith("-auth-token"),
-        );
-
-        if (supabaseCookieKey && cookies[supabaseCookieKey]) {
-          try {
-            const parsed = JSON.parse(decodeURIComponent(cookies[supabaseCookieKey]));
-            token = parsed?.access_token || null;
-          } catch {
-            token = cookies[supabaseCookieKey];
-          }
+      if (supabaseCookieKey && cookies[supabaseCookieKey]) {
+        try {
+          const parsed = JSON.parse(decodeURIComponent(cookies[supabaseCookieKey]));
+          token = parsed?.access_token || null;
+        } catch {
+          token = cookies[supabaseCookieKey];
         }
       }
     }
@@ -179,36 +168,24 @@ export async function getSupabaseUserClient(): Promise<SupabaseClient | null> {
   let token: string | null = null;
 
   try {
-    const { getEvent, getHeaders } = (await new Function('return import("vinxi/http")')()) as {
-      getEvent: () => unknown;
-      getHeaders: (event: unknown) => Record<string, string | undefined>;
-    };
-    const event = getEvent();
-    if (event) {
-      const headers = getHeaders(event);
-      const authHeader = headers["authorization"];
-      if (authHeader && authHeader.startsWith("Bearer ")) {
-        token = authHeader.substring(7);
-      } else {
-        const cookieHeader = headers["cookie"] || "";
-        const cookies = Object.fromEntries(
-          cookieHeader.split(";").map((c: string) => {
-            const parts = c.trim().split("=");
-            return [parts[0], parts.slice(1).join("=")];
-          }),
-        );
+    const { getCookies, getRequestHeaders } = await import("@tanstack/react-start/server");
+    const headers = (getRequestHeaders() as any) || {};
+    const cookies = getCookies() || {};
 
-        const supabaseCookieKey = Object.keys(cookies).find(
-          (key) => key.startsWith("sb-") && key.endsWith("-auth-token"),
-        );
+    const authHeader = headers["authorization"];
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.substring(7);
+    } else {
+      const supabaseCookieKey = Object.keys(cookies).find(
+        (key) => key.startsWith("sb-") && key.endsWith("-auth-token"),
+      );
 
-        if (supabaseCookieKey && cookies[supabaseCookieKey]) {
-          try {
-            const parsed = JSON.parse(decodeURIComponent(cookies[supabaseCookieKey]));
-            token = parsed?.access_token || null;
-          } catch {
-            token = cookies[supabaseCookieKey];
-          }
+      if (supabaseCookieKey && cookies[supabaseCookieKey]) {
+        try {
+          const parsed = JSON.parse(decodeURIComponent(cookies[supabaseCookieKey]));
+          token = parsed?.access_token || null;
+        } catch {
+          token = cookies[supabaseCookieKey];
         }
       }
     }
