@@ -39,7 +39,12 @@ export function getSupabaseBrowser(): SupabaseClient | null {
 
           if (session) {
             const maxAge = 60 * 60 * 24 * 7; // 7 days
-            const value = encodeURIComponent(JSON.stringify(session));
+            // Only store the essential tokens to keep the cookie payload lightweight (<1KB)
+            // and avoid browser/server cookie size limitations and truncation.
+            const value = encodeURIComponent(JSON.stringify({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token || "",
+            }));
             const isSecure = window.location.protocol === "https:";
             document.cookie = `${cookieName}=${value}; path=/; max-age=${maxAge}; SameSite=Lax${isSecure ? "; secure" : ""}`;
           } else {
@@ -62,4 +67,56 @@ export function getSupabaseBrowser(): SupabaseClient | null {
   }
 
   return supabaseBrowser;
+}
+
+// Intercept all client-side fetch requests to automatically append the Supabase
+// Authorization bearer token to server function calls (requests to /_server).
+// This guarantees authentication succeeds on edge environments like Vercel
+// even if cookies are dropped, blocked, or not yet set.
+if (typeof window !== "undefined") {
+  const originalFetch = window.fetch;
+  window.fetch = async function (input, init) {
+    let url = "";
+    if (typeof input === "string") {
+      url = input;
+    } else if (input instanceof URL) {
+      url = input.toString();
+    } else if (input && typeof input === "object" && "url" in input) {
+      url = (input as Request).url;
+    }
+
+    if (url.includes("/_server")) {
+      try {
+        const tokenKey = Object.keys(localStorage).find(
+          (key) => key.startsWith("sb-") && key.endsWith("-auth-token"),
+        );
+        if (tokenKey) {
+          const sessionStr = localStorage.getItem(tokenKey);
+          if (sessionStr) {
+            const parsed = JSON.parse(sessionStr);
+            const accessToken = parsed?.access_token;
+            if (accessToken) {
+              if (typeof input === "string" || input instanceof URL) {
+                init = init || {};
+                const headers = init.headers ? new Headers(init.headers) : new Headers();
+                if (!headers.has("Authorization")) {
+                  headers.set("Authorization", `Bearer ${accessToken}`);
+                  init.headers = headers;
+                }
+              } else if (input instanceof Request) {
+                if (!input.headers.has("Authorization")) {
+                  const newHeaders = new Headers(input.headers);
+                  newHeaders.set("Authorization", `Bearer ${accessToken}`);
+                  input = new Request(input, { headers: newHeaders });
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[Fetch Interceptor] Failed to attach Authorization header:", err);
+      }
+    }
+    return originalFetch(input, init);
+  };
 }

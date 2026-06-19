@@ -8,6 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -218,7 +219,6 @@ function RootComponent() {
     setupBackgroundSync();
 
     const clearCookieIfAuthenticated = async () => {
-      const { getSupabaseBrowser } = await import("@/lib/supabase/client");
       const supabase = getSupabaseBrowser();
       if (supabase) {
         const { data } = await supabase.auth.getSession();
@@ -231,7 +231,6 @@ function RootComponent() {
 
     const handlePageShow = async (event: PageTransitionEvent) => {
       if (event.persisted) {
-        const { getSupabaseBrowser } = await import("@/lib/supabase/client");
         const supabase = getSupabaseBrowser();
         if (supabase) {
           const { data } = await supabase.auth.getSession();

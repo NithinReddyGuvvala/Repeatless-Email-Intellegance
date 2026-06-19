@@ -5,6 +5,7 @@ import { AuthShell } from "@/components/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { handleGoogleCallbackAction } from "@/lib/gmail/actions";
+import "@/lib/supabase/client";
 
 // Define the query parameter search schema
 const callbackSearchSchema = z.object({

@@ -65,7 +65,7 @@ export async function getAuthenticatedUser(): Promise<{ id: string; email: strin
     isLoggedOutCookie = cookies["inbox_harmony_logged_out"] === "true";
 
     // Check Authorization Bearer header
-    const authHeader = headers["authorization"];
+    const authHeader = headers["authorization"] || headers["Authorization"];
     if (authHeader && authHeader.startsWith("Bearer ")) {
       token = authHeader.substring(7);
     } else {
@@ -171,7 +171,7 @@ export async function getSupabaseUserClient(): Promise<SupabaseClient | null> {
     const headers = (getRequestHeaders() as any) || {};
     const cookies = getCookies() || {};
 
-    const authHeader = headers["authorization"];
+    const authHeader = headers["authorization"] || headers["Authorization"];
     if (authHeader && authHeader.startsWith("Bearer ")) {
       token = authHeader.substring(7);
     } else {
