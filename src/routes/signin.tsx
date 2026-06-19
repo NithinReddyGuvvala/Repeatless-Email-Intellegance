@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { AuthShell } from "@/components/auth-shell";
 import { useState, useEffect } from "react";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
-import { getAuthenticatedUser, supabaseAdmin } from "@/lib/supabase/server";
+import { checkAuthAction } from "@/lib/supabase/actions";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,16 +22,9 @@ export const Route = createFileRoute("/signin")({
     let hasAccount = false;
 
     if (typeof window === "undefined") {
-      const user = await getAuthenticatedUser();
-      isAuthenticated = !!user;
-      if (user && supabaseAdmin) {
-        const { data } = await supabaseAdmin
-          .from("gmail_accounts")
-          .select("id")
-          .eq("user_id", user.id)
-          .limit(1);
-        hasAccount = !!data && data.length > 0;
-      }
+      const result = await checkAuthAction();
+      isAuthenticated = result.isAuthenticated;
+      hasAccount = result.hasAccount;
     } else {
       const supabase = getSupabaseBrowser();
       if (supabase) {

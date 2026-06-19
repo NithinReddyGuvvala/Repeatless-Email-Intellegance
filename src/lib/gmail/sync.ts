@@ -1,5 +1,5 @@
 import { getEnv } from "../env";
-import { supabaseAdmin } from "../supabase/server";
+import { supabaseAdmin } from "../supabase/server.server";
 import { refreshAccessToken, getGmailProfile } from "./oauth";
 import { getQuotaStatus, setQuotaExceeded } from "./quotaState";
 

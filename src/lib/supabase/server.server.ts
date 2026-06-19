@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getEnv } from "../env";
+import { getCookies, getRequestHeaders } from "@tanstack/react-start/server";
 
 // Reusable server-side admin Supabase client singleton
 let supabaseAdmin: SupabaseClient | null = null;
@@ -58,7 +59,6 @@ export async function getAuthenticatedUser(): Promise<{ id: string; email: strin
 
   // 1. Try to parse headers and cookies using TanStack Start's server utilities
   try {
-    const { getCookies, getRequestHeaders } = await import("@tanstack/react-start/server");
     const headers = (getRequestHeaders() as any) || {};
     const cookies = getCookies() || {};
 
@@ -168,7 +168,6 @@ export async function getSupabaseUserClient(): Promise<SupabaseClient | null> {
   let token: string | null = null;
 
   try {
-    const { getCookies, getRequestHeaders } = await import("@tanstack/react-start/server");
     const headers = (getRequestHeaders() as any) || {};
     const cookies = getCookies() || {};
 
@@ -238,4 +237,3 @@ export async function getSupabaseUserClient(): Promise<SupabaseClient | null> {
 
   return null;
 }
-

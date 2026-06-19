@@ -4,7 +4,7 @@ import { AuthShell } from "@/components/auth-shell";
 import { ShieldCheck, Lock, Eye, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getGoogleAuthUrlAction, saveGoogleProviderTokensAction } from "@/lib/gmail/actions";
-import { getAuthenticatedUser, supabaseAdmin } from "@/lib/supabase/server";
+import { checkAuthAction } from "@/lib/supabase/actions";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
@@ -34,16 +34,9 @@ export const Route = createFileRoute("/connect")({
     let hasAccount = false;
 
     if (typeof window === "undefined") {
-      const user = await getAuthenticatedUser();
-      isAuthenticated = !!user;
-      if (user && supabaseAdmin) {
-        const { data } = await supabaseAdmin
-          .from("gmail_accounts")
-          .select("id")
-          .eq("user_id", user.id)
-          .limit(1);
-        hasAccount = !!data && data.length > 0;
-      }
+      const result = await checkAuthAction();
+      isAuthenticated = result.isAuthenticated;
+      hasAccount = result.hasAccount;
     } else {
       const supabase = getSupabaseBrowser();
       if (supabase) {

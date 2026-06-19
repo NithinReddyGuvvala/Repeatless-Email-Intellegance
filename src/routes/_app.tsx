@@ -1,6 +1,6 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
-import { getAuthenticatedUser } from "@/lib/supabase/server";
+import { checkAuthAction } from "@/lib/supabase/actions";
 import { isDemoMode } from "@/lib/gmail/demoDb";
 
 export const Route = createFileRoute("/_app")({
@@ -12,8 +12,8 @@ export const Route = createFileRoute("/_app")({
     let isAuthenticated = false;
 
     if (typeof window === "undefined") {
-      const user = await getAuthenticatedUser();
-      isAuthenticated = !!user;
+      const result = await checkAuthAction();
+      isAuthenticated = result.isAuthenticated;
     } else {
       const supabase = getSupabaseBrowser();
       if (supabase) {

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getGoogleAuthUrl, exchangeCodeForTokens, getGmailProfile } from "./oauth";
-import { supabaseAdmin, getAuthenticatedUser, getSupabaseUserClient } from "../supabase/server";
+import { supabaseAdmin, getAuthenticatedUser, getSupabaseUserClient } from "../supabase/server.server";
 import { syncGmailAccount, syncGmailThread, refreshGmailAccessTokenIfNeeded, summarizeAndSaveEmail, summarizeAndSaveThread, fetchGmailMessageDetails, activeServerSyncs, runBackgroundSyncProcess, refreshCachedGmailCounts } from "./sync";
 import { getEnv } from "../env";
 import { getQuotaStatus, setQuotaExceeded } from "./quotaState";
