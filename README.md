@@ -1,174 +1,174 @@
-# Repeatless – AI-Powered Email Intelligence
+# Repeatless – AI-Powered Email Intelligence Platform
 
-Repeatless is an intelligent, privacy-focused email layer that connects securely to your Gmail mailbox, transforming thousands of unstructured emails into clear summaries, smart categories, and a natural language chat agent.
+Repeatless is a privacy-first, secure email intelligence overlay for Google Gmail. It is designed to index mailboxes, isolate subscription clutter, compile actionable thread-level summaries, and expose a natural language chat interface—transforming unstructured mailboxes into searchable, context-aware workspaces.
 
 ---
 
 ## 🔗 Project Links
 
-* **Live Demo**: [https://your-app-url.vercel.app](https://your-app-url.vercel.app)
-* **GitHub Repository**: [https://github.com/your-username/repeatless](https://github.com/your-username/repeatless)
+- **Live Demo**: [https://repeatless-email-intellegance.vercel.app](https://repeatless-email-intellegance.vercel.app)
+- **GitHub Repository**: [https://github.com/NithinReddyGuvvala/Repeatless-Email-Intellegance.git](https://github.com/NithinReddyGuvvala/Repeatless-Email-Intellegance.git)
 
 ---
 
 ## ✨ Features
 
-* 📥 **Gmail Sync Engine**: Synchronizes messages, threads, labels, drafts, and sent mail in the background via OAuth 2.0.
-* 📊 **Dashboard Analytics**: Real-time insights detailing total threads, unread metrics, newsletter breakdowns, and category ratios.
-* 🏷️ **Smart Categorization**: Classifies every thread into a distinct category (*Work, Personal, Finance, Job, Newsletter, Notification*) via Gemini.
-* 💬 **Natural Language AI Agent**: Chat with your mailbox history. Retrieve details, ask questions, or synthesize threads instantly.
-* 🔍 **Contextual Search**: High-speed indexing and querying across subjects, body text, and senders.
-* 📰 **Newsletter Isolation**: Isolates subscriptions and newsletters into a clean list, keeping the primary inbox distraction-free.
-* ⚡ **Quota Circuit Breaker**: Gracefully handles free-tier Gemini API limitations, preventing UI stalls and caching insights.
-* 🎨 **Harmonized Design**: A clean, premium editorial-style interface with full support for user theme preferences.
+- 🔑 **Gmail OAuth Authentication**: Seamless sign-in using Google's official OAuth 2.0 flow with dynamic account selector consent.
+- 🛡️ **Secure Account Linking**: High-security session creation storing encrypted offline access and refresh tokens.
+- 🔄 **Inbox Synchronization**: Background sync pipeline with concurrent message fetching and batch SQL operations.
+- 📝 **AI Email Summaries**: Instant bullet points outlining key takeaways, decisions, and action items for individual messages and threads.
+- 🏷️ **Smart Categorization**: Classifies every thread into primary context buckets (*Work, Personal, Finance, Job, Newsletter, Notification*).
+- 💬 **Conversational AI Agent**: Natural language assistant leveraging context retrieval for answering detailed queries about your mailbox history.
+- 📈 **Dashboard Analytics**: Real-time analytics detailing unread metrics, category ratios, newsletter counts, and daily briefing widgets.
+- 🔍 **Unified Search**: Search across subjects, senders, and body texts utilizing indexed database queries.
+- ⚙️ **Profile & Settings Management**: Manage user preferences, view synchronization logs, switch accounts, and disconnect Google access.
+- 📊 **Multi-step Sync Tracking**: Visual step indicators detailing incremental stages of message ingestion.
 
 ---
 
 ## 📷 Screenshots
 
-### Login Page
-![Login](docs/images/login.png)
+### Landing Page
+![Landing Page](docs/screenshots/landing.png)
+
+### Login Screen
+![Login Screen](docs/screenshots/login.png)
 
 ### Dashboard
-![Dashboard](docs/images/dashboard.png)
+![Dashboard](docs/screenshots/dashboard.png)
 
 ### Inbox
-![Inbox](docs/images/inbox.png)
+![Inbox](docs/screenshots/inbox.png)
 
 ### Categories
-![Categories](docs/images/categories.png)
+![Categories](docs/screenshots/categories.png)
 
 ### AI Agent
-![AI Agent](docs/images/ai-agent.png)
+![AI Agent](docs/screenshots/agent.png)
 
-### Settings
-![Settings](docs/images/settings.png)
+### Settings / Connected Gmail
+![Settings / Connected Gmail](docs/screenshots/settings.png)
 
----
-
-## 🏗️ Architecture
-
-For detailed flow diagrams (Authentication, Gmail Synchronization, AI Summarization, and Deployment), see the root [ARCHITECTURE.md](file:///d:/Repeat%20Less%20Gmail%20Intellegance/inbox-harmony/ARCHITECTURE.md) document.
+### Gmail Sync Progress
+![Gmail Sync Progress](docs/screenshots/sync.png)
 
 ---
 
 ## 💻 Tech Stack
 
-* **Frontend**: React 19, TypeScript, Tailwind CSS, TanStack Router (filesystem routing), TanStack React Query (state caching).
-* **Backend**: Supabase (PostgreSQL with Row Level Security).
-* **Integrations**: Google Gmail API, Gemini AI Pro API.
-* **Hosting**: Vercel.
+### Frontend
+- **Framework**: React 19 (Single Page Architecture)
+- **Routing**: TanStack Router (Typesafe File-based routing)
+- **Data Fetching**: TanStack React Query v5 (Declarative state caching)
+- **Styling**: Tailwind CSS
+- **Typing**: TypeScript
+
+### Backend & Middleware
+- **Database & Auth**: Supabase (BaaS PostgreSQL)
+- **Server Handlers**: TanStack Start Server Actions (Vinxi RPC boundary)
+
+### Security & Integrations
+- **Authentication**: Google OAuth 2.0 & Supabase Auth
+- **AI Engine**: Google Gemini Pro (Summarization, briefing, and chat agent)
+- **Hosting**: Vercel
 
 ---
 
-## 📁 Project Structure
+## 🔒 Security & Privacy
 
-```text
-inbox-harmony/
-├── supabase/                 # Supabase configuration, schema migrations, and functions
-│   ├── migrations/           # SQL database migrations
-│   └── functions/            # Edge functions (sync handlers)
-├── src/
-│   ├── components/           # Reusable UI elements (AppShell, AuthShell, forms)
-│   ├── lib/
-│   │   ├── supabase/         # Supabase client/server singletons
-│   │   └── gmail/            # Gmail OAuth, API sync logic, and quota breaker
-│   ├── routes/               # TanStack filesystem-routing pages
-│   ├── styles.css            # Base Tailwind and custom design variables
-│   └── main.tsx              # Application client entrypoint
-├── ARCHITECTURE.md           # System flows and design document
-├── package.json              # Project dependencies
-└── vite.config.ts            # Vite bundler options
-```
+Repeatless has been audited to eliminate hardcoded credentials and strictly adheres to standard security compliance policies:
+
+- **OAuth 2.0 Protocol**: Google OAuth handles credentials. Repeatless never sees, prompts for, or stores your Google password.
+- **Least-Privilege Gmail Access**: Requests are restricted to the minimal scopes (`gmail.modify` and `gmail.send`) required for mailbox operations.
+- **Secure Secret Handling**: Environment variables secure server-side keys. No secrets are committed to GitHub.
+- **Automatic Session Eviction**: Logging out clears user cookies, wipes local/session caches, and intercepts browser back-button caching (bfcache) to prevent unauthorized view restores.
+- **Environment Isolation**: PostgreSQL Row Level Security (RLS) protects tables, guaranteeing users can only access their own synchronized data.
+
+### Trust Badges
+🔒 **OAuth 2.0 Protected** &nbsp;|&nbsp; 🛡️ **Environment Variable Secured** &nbsp;|&nbsp; 📧 **Read-only Gmail Access** &nbsp;|&nbsp; 🚫 **No Hardcoded Secrets** &nbsp;|&nbsp; ☁️ **Secure Vercel Deployment**
 
 ---
 
 ## 🚀 Setup Instructions
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/your-username/repeatless.git
-cd repeatless
-```
+### Prerequisites
+Ensure you have the following installed or configured:
+- **Node.js** (v18 or higher)
+- **npm** (v9 or higher)
+- **Supabase Project** (database instance with Google OAuth enabled)
+- **Google Cloud Platform Project** (Gmail API enabled and credentials created)
+- **Google Gemini API Key**
 
-### 2. Install Dependencies
-```bash
-npm install
-```
+---
 
-### 3. Configure Local Environment Variables
-Create a `.env.local` file in the root directory:
+### Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/NithinReddyGuvvala/Repeatless-Email-Intellegance.git
+   cd Repeatless-Email-Intellegance
+   ```
+
+2. **Install project dependencies**:
+   ```bash
+   npm install
+   ```
+
+---
+
+### Environment Variables
+Create a `.env.local` file in the project root:
 ```env
 # Supabase Configuration
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
-# Google OAuth Configuration
+# Google OAuth Credentials
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 
-# Gemini AI API Configuration
+# Google Gemini AI Key
 GEMINI_API_KEY=your-gemini-api-key
+
+# Vercel Configuration
+VERCEL_URL=your-vercel-domain
 ```
 > [!WARNING]
-> **Security Reminder**: Never commit `.env.local` or any key files to Git. The project contains a hardened `.gitignore` preventing accidental leaks.
-
-### 4. Setup Supabase
-1. Create a new Supabase project in the [Supabase Dashboard](https://database.new).
-2. Set up Auth:
-   * Go to **Auth -> Providers -> Google**.
-   * Enable the Google provider.
-   * Input your Client ID and Client Secret (retrieved from Google Cloud Console).
-   * Note the redirect URI provided by Supabase.
-3. Run Database Migrations:
-   * Execute the SQL migration scripts located in the `/supabase/migrations` folder using the Supabase SQL Editor to initialize all tables, indexes, and Row-Level Security (RLS) policies.
-
-### 5. Setup Google Cloud Console (Google OAuth)
-1. Go to the [Google Cloud Console](https://console.cloud.google.com).
-2. Create a new project.
-3. Search for and enable the **Gmail API**.
-4. Configure the **OAuth Consent Screen**:
-   * Set user type to **External** (or Internal if testing in workspace).
-   * Add the required scopes:
-     * `openid`, `auth/userinfo.email`, `auth/userinfo.profile`
-     * `https://www.googleapis.com/auth/gmail.modify` (Read & sync mail)
-     * `https://www.googleapis.com/auth/gmail.send` (Send emails)
-     * `https://www.googleapis.com/auth/gmail.compose` (Manage drafts)
-5. Create Credentials:
-   * Go to **Credentials -> Create Credentials -> OAuth Client ID**.
-   * Set application type to **Web Application**.
-   * Under **Authorized redirect URIs**, add:
-     * `http://localhost:3000/connect` (local testing)
-     * `https://your-project-ref.supabase.co/auth/v1/callback` (Supabase callback)
-     * `https://your-app-url.vercel.app/connect` (production Vercel)
-   * Save and copy the Client ID and Client Secret into your `.env.local`.
-
-### 6. Run the Project Locally
-```bash
-npm run dev
-```
-The server will start on `http://localhost:3000` (or another available port).
+> Do not commit `.env.local` or environment keys to your code repository. Ensure `.env.local` is present in `.gitignore`.
 
 ---
 
-## ☁️ Vercel Deployment
+### Running Locally
 
-1. Install the Vercel CLI or import the repository in the [Vercel Dashboard](https://vercel.com).
-2. Add your environment variables in Vercel under Project Settings -> Environment Variables.
-3. Build & Deploy:
-```bash
-vercel --prod
-```
-
----
-
-## ⚠️ Known Limitations
-
-* **Gemini Quota limits**: When using the free-tier Gemini key, the application may hit rate limit codes (HTTP 429). The system implements an active circuit breaker to block subsequent requests during cooldown, showing cached dashboard stats to ensure stability.
+1. **Start the development server**:
+   ```bash
+   npm run dev
+   ```
+2. Open your browser and navigate to `http://localhost:3000`.
 
 ---
 
-## 📄 License
+### Production Build
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+1. **Compile and compile production bundles**:
+   ```bash
+   npm run build
+   ```
+
+2. **Preview the production server locally**:
+   ```bash
+   npm start
+   ```
+
+---
+
+### ☁️ Vercel Deployment
+
+1. **Import the repository** into the [Vercel Dashboard](https://vercel.com).
+2. **Add Environment Variables**: Paste all variables from `.env.local` under Project Settings -> Environment Variables.
+3. Configure the **Build Settings**:
+   - Framework Preset: **Other** / Auto-detected
+   - Build Command: `npm run build`
+   - Output Directory: `.output`
+4. **Deploy**: Click Deploy to launch the platform.
